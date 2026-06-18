@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Mesa de Ayuda · Efletexia</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#16a34a;--gl:#bbf7d0;--gb:#f0fdf4;
+  --r:#dc2626;--rl:#fecaca;--rb:#fef2f2;
+  --b:#1e40af;--bl:#bfdbfe;--bb:#eff6ff;
+  --y:#d97706;--yl:#fde68a;
+  --surf:#f8fafc;--brd:#e2e8f0;--brd2:#cbd5e1;
+  --tx:#0f172a;--mut:#475569;--lt:#94a3b8;
+  --sh:0 1px 3px rgba(15,23,42,.07),0 4px 16px rgba(15,23,42,.05);
+}
+body{font-family:'Outfit',sans-serif;background:#fff;color:var(--tx);min-height:100vh;padding:0}
+
+/* LOADING */
+.lov{position:fixed;inset:0;background:rgba(15,23,42,.8);display:flex;align-items:center;
+  justify-content:center;z-index:9999;backdrop-filter:blur(4px)}
+.lov.hidden{display:none}
+.lcard{background:#fff;border-radius:16px;padding:36px 48px;text-align:center;
+  max-width:400px;width:90%;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+.lspin{width:48px;height:48px;border:3px solid var(--brd);border-top-color:var(--b);
+  border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ltit{font-size:16px;font-weight:800;color:var(--tx);margin-bottom:6px}
+.lmsg{font-size:12px;color:var(--mut);line-height:1.5}
+.lsteps{margin-top:16px;text-align:left;display:flex;flex-direction:column;gap:6px}
+.lstep{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;color:var(--lt)}
+.lstep.done{color:var(--g)}.lstep.act{color:var(--b)}
+.lstep-i{width:16px;height:16px;border-radius:50%;background:var(--surf);
+  border:1.5px solid var(--brd);display:flex;align-items:center;justify-content:center;
+  font-size:8px;flex-shrink:0}
+.lstep.done .lstep-i{background:var(--gb);border-color:var(--g);color:var(--g)}
+.lstep.act .lstep-i{background:var(--bb);border-color:var(--b);animation:pulse 1s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#0f2942 100%);
+  padding:24px 36px;display:flex;align-items:center;justify-content:space-between;
+  position:relative;overflow:hidden}
+.hdr::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% 50%,rgba(59,130,246,.12) 0%,transparent 70%)}
+.hdr-l{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+.logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;
+  color:#fff;letter-spacing:-1px;box-shadow:0 4px 12px rgba(59,130,246,.4)}
+.hdr-title{font-size:24px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.hdr-sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:1px}
+.hdr-r{position:relative;z-index:1;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.hdr-period{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+  border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;color:rgba(255,255,255,.75);display:inline-block}
+.hdr-date{font-size:11px;color:rgba(255,255,255,.35)}
+.btn-ref{background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);border-radius:8px;
+  padding:6px 14px;font-size:11px;font-weight:700;color:rgba(255,255,255,.85);cursor:pointer;
+  font-family:inherit;transition:all .15s}
+.btn-ref:hover{background:rgba(59,130,246,.35)}
+.btn-ref:disabled{opacity:.45;cursor:not-allowed}
+
+/* ERROR */
+.err{background:var(--rb);border:1.5px solid var(--rl);border-radius:10px;padding:12px 16px;
+  margin-bottom:18px;font-size:12px;gap:10px;color:var(--r);display:none;align-items:flex-start}
+.err.on{display:flex}
+.err strong{font-weight:800}
+
+/* WRAP */
+.wrap{padding:24px 36px;max-width:1700px;margin:0 auto}
+
+/* TABS */
+.tabs{display:flex;gap:6px;margin-bottom:22px;flex-wrap:wrap;align-items:center}
+.tab{padding:7px 18px;border-radius:8px;border:1.5px solid var(--brd2);font-size:12px;
+  font-weight:700;cursor:pointer;background:#fff;color:var(--mut);transition:all .15s}
+.tab.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+.tab:not(.on):hover{border-color:var(--b);color:var(--b)}
+.tsep{width:1px;height:20px;background:var(--brd);margin:0 4px;flex-shrink:0}
+.dfilter{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.dfilter label{font-size:11px;font-weight:700;color:var(--mut)}
+.din{padding:5px 10px;border:1.5px solid var(--brd2);border-radius:8px;font-size:11px;
+  font-family:inherit;color:var(--tx);outline:none;cursor:pointer}
+.din:focus{border-color:var(--b)}
+.baply{padding:5px 14px;background:var(--b);color:#fff;border:none;border-radius:8px;
+  font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.baply:hover{background:#1e3a8a}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:22px}
+.kpi{background:#fff;border:1.5px solid var(--brd);border-radius:12px;padding:14px 16px;
+  box-shadow:var(--sh);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.kpi.g::before{background:var(--g)}.kpi.r::before{background:var(--r)}
+.kpi.b::before{background:var(--b)}.kpi.y::before{background:var(--y)}
+.kpi-ico{font-size:18px;margin-bottom:5px}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--lt);letter-spacing:.7px;text-transform:uppercase}
+.kpi-val{font-size:30px;font-weight:800;line-height:1.1;margin:4px 0}
+.kpi.g .kpi-val{color:var(--g)}.kpi.r .kpi-val{color:var(--r)}
+.kpi.b .kpi-val{color:var(--b)}.kpi.y .kpi-val{color:var(--y)}
+.kpi-foot{font-size:11px;color:var(--mut)}
+.pill{display:inline-block;padding:1px 7px;border-radius:100px;font-size:10px;font-weight:800}
+.kpi.g .pill{background:var(--gl);color:var(--g)}.kpi.r .pill{background:var(--rl);color:var(--r)}
+.kpi.b .pill{background:var(--bl);color:var(--b)}.kpi.y .pill{background:var(--yl);color:#92400e}
+
+/* SECTION */
+.sec{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--lt);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:var(--brd)}
+
+/* GRIDS */
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:18px}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:14px;margin-bottom:18px}
+.g1{margin-bottom:18px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+
+/* CARD */
+.card{background:#fff;border:1.5px solid var(--brd);border-radius:14px;padding:18px 20px;box-shadow:var(--sh)}
+.ct{font-size:13px;font-weight:800;color:var(--tx)}
+.cs{font-size:11px;color:var(--lt);margin-top:1px;margin-bottom:10px}
+.cbadge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;
+  background:var(--surf);border:1px solid var(--brd);color:var(--mut)}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.leg{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--mut)}
+.ld{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* TABLE */
+.tcard{background:#fff;border:1.5px solid var(--brd);border-radius:14px;overflow:hidden;box-shadow:var(--sh);margin-bottom:18px}
+.th{padding:16px 20px 12px;border-bottom:1px solid var(--brd);display:flex;align-items:flex-start;justify-content:space-between}
+.tbgs{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.tbg{padding:3px 9px;border-radius:100px;font-size:10px;font-weight:800}
+.te{background:#fef3c7;color:#92400e}.th2{background:#dbeafe;color:#1e40af}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+thead tr{background:var(--surf)}
+th{padding:9px 12px;text-align:left;font-size:10px;font-weight:800;color:var(--lt);
+  letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--brd);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--brd);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+.tk{font-weight:800;color:var(--b);font-size:12px}
+.tk a{color:inherit;text-decoration:none}.tk a:hover{text-decoration:underline}
+.its{padding:2px 7px;border-radius:4px;font-size:9px;font-weight:800;letter-spacing:.3px}
+.its-s{background:var(--gl);color:var(--g)}.its-i{background:var(--rl);color:var(--r)}
+.sts{padding:2px 7px;border-radius:4px;font-size:9px;font-weight:800}
+.se{background:#fef3c7;color:#92400e}.sh2{background:#dbeafe;color:#1e40af}
+.ts{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm{color:var(--mut);font-size:11px}
+
+/* AUDIO */
+.audio-wrap{background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;
+  padding:22px 28px;display:flex;align-items:center;gap:20px;
+  box-shadow:0 4px 24px rgba(15,23,42,.15);margin-bottom:18px;position:relative;overflow:hidden}
+.audio-wrap::before{content:'';position:absolute;right:-40px;top:-40px;
+  width:180px;height:180px;border-radius:50%;background:rgba(59,130,246,.07)}
+.aud-icon{width:54px;height:54px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;
+  justify-content:center;font-size:24px;box-shadow:0 4px 14px rgba(34,197,94,.35)}
+.aud-info{flex:1;position:relative;z-index:1}
+.aud-title{font-size:17px;font-weight:800;color:#fff;margin-bottom:2px}
+.aud-desc{font-size:11px;color:rgba(255,255,255,.45);margin-bottom:12px}
+.aud-row{display:flex;align-items:center;gap:10px}
+.play-btn{width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;
+  justify-content:center;font-size:15px;box-shadow:0 3px 10px rgba(34,197,94,.45);
+  transition:transform .15s,box-shadow .15s;color:#fff}
+.play-btn:hover{transform:scale(1.1);box-shadow:0 5px 18px rgba(34,197,94,.55)}
+.prog-wrap{flex:1}
+.prog{width:100%;height:4px;border-radius:100px;appearance:none;outline:none;border:none;
+  background:rgba(255,255,255,.15);cursor:pointer}
+.prog::-webkit-slider-thumb{appearance:none;width:13px;height:13px;border-radius:50%;
+  background:#22c55e;cursor:pointer;box-shadow:0 0 0 3px rgba(34,197,94,.25)}
+.times{display:flex;justify-content:space-between;margin-top:3px}
+.tlbl{font-size:10px;color:rgba(255,255,255,.4);font-weight:600}
+.vol-row{display:flex;align-items:center;gap:7px}
+.vol-ico{font-size:14px;color:rgba(255,255,255,.45)}
+.vol{width:65px;height:3px;appearance:none;background:rgba(255,255,255,.2);border-radius:100px;outline:none;cursor:pointer}
+.vol::-webkit-slider-thumb{appearance:none;width:11px;height:11px;border-radius:50%;background:#fff;cursor:pointer}
+.aud-stats{display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
+.ast{text-align:center}
+.ast-v{font-size:20px;font-weight:800;color:#fff}
+.ast-l{font-size:9px;color:rgba(255,255,255,.4);font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-top:1px}
+.ai-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(139,92,246,.15);
+  border:1px solid rgba(139,92,246,.3);border-radius:6px;padding:2px 8px;
+  font-size:9px;font-weight:800;color:#8b5cf6}
+
+/* FOOTER */
+.footer{text-align:center;font-size:11px;color:var(--lt);padding-bottom:16px}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="lov" id="lov">
+  <div class="lcard">
+    <div class="lspin"></div>
+    <div class="ltit">Conectando con Jira</div>
+    <div class="lmsg">Mesa de Ayuda · efletexia.atlassian.net</div>
+    <div class="lsteps">
+      <div class="lstep act" id="s1"><div class="lstep-i">●</div>Conectando con Jira</div>
+      <div class="lstep"     id="s2"><div class="lstep-i">○</div>Obteniendo tickets</div>
+      <div class="lstep"     id="s3"><div class="lstep-i">○</div>Procesando métricas</div>
+      <div class="lstep"     id="s4"><div class="lstep-i">○</div>Generando resumen IA</div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="logo">EF</div>
+    <div>
+      <div class="hdr-title">Mesa de Ayuda – Efletexia</div>
+      <div class="hdr-sub">Dashboard Gerencial · Jira Service Management · Proyecto Mesa de Ayuda · efletexia.atlassian.net</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="hdr-period" id="hdrPeriod">📅 Cargando...</div>
+    <div class="hdr-date"   id="hdrDate">Conectando con Jira...</div>
+    <button class="btn-ref" id="btnRef" onclick="loadFromJira()">🔄 Actualizar</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ERROR -->
+<div class="err" id="errBanner">
+  <span style="font-size:16px">⚠️</span>
+  <div><strong>Error al cargar datos:</strong> <span id="errMsg"></span> — Se muestran datos demo.</div>
+</div>
+
+<!-- TABS + FILTRO FECHA -->
+<div class="tabs">
+  <div class="tab on" id="tab0" onclick="setM(0)">Mes 1</div>
+  <div class="tab"    id="tab1" onclick="setM(1)">Mes 2</div>
+  <div class="tab"    id="tab2" onclick="setM(2)">Mes 3</div>
+  <div class="tab"    id="tab3" onclick="setM(3)">▦ Total Período</div>
+  <div class="tsep"></div>
+  <div class="dfilter">
+    <label>Desde</label><input type="month" class="din" id="dFrom">
+    <label>Hasta</label><input type="month" class="din" id="dTo">
+    <button class="baply" onclick="applyFilter()">Aplicar</button>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpis" id="kpis"></div>
+
+<!-- 2. ESTADO + EVOLUCIÓN -->
+<div class="sec">Distribución &amp; Estado</div>
+<div class="g3">
+  <div class="card">
+    <div class="ch"><div><div class="ct">Estado de Solicitudes</div><div class="cs">Solicitudes de servicio por estado</div></div><span class="cbadge" id="b_es"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:#22c55e"></div>Resuelto</div><div class="li"><div class="ld" style="background:#f59e0b"></div>Cancelado</div><div class="li"><div class="ld" style="background:#3b82f6"></div>Esp. ayuda</div><div class="li"><div class="ld" style="background:#ef4444"></div>Escalado</div></div>
+    <canvas id="cEstSol" height="210"></canvas>
+  </div>
+  <div class="card">
+    <div class="ch"><div><div class="ct">Estado de Incidentes</div><div class="cs">Incidentes por estado</div></div><span class="cbadge" id="b_ei"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:#22c55e"></div>Resuelto</div><div class="li"><div class="ld" style="background:#f59e0b"></div>Cancelado</div><div class="li"><div class="ld" style="background:#3b82f6"></div>Esp. ayuda</div><div class="li"><div class="ld" style="background:#ef4444"></div>Escalado</div></div>
+    <canvas id="cEstInc" height="210"></canvas>
+  </div>
+  <div class="card">
+    <div class="ch"><div><div class="ct">Evolución Mensual</div><div class="cs">Total tickets por mes del período</div></div><span class="cbadge">Período</span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:var(--g)"></div>Solicitud</div><div class="li"><div class="ld" style="background:var(--r)"></div>Incidente</div></div>
+    <canvas id="cEvol" height="210"></canvas>
+  </div>
+</div>
+
+<!-- 3. TIPO DE INCIDENCIA -->
+<div class="sec">Solicitudes por Tipo de Incidencia</div>
+<div class="g2">
+  <div class="card">
+    <div class="ch"><div><div class="ct">Solicitudes</div><div class="cs">Por Tipo de Incidencia – gráfico circular</div></div><span class="cbadge" id="b_sp"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:var(--g)"></div>Solicitud de servicio</div><div class="li"><div class="ld" style="background:var(--r)"></div>Incidente de [System]</div><div class="li"><div class="ld" style="background:#8b5cf6"></div>Proyecto</div></div>
+    <canvas id="cTipoPie" height="220"></canvas>
+  </div>
+  <div class="card">
+    <div class="ch"><div><div class="ct">Solicitudes</div><div class="cs">Por Tipo de Incidencia – gráfico de columnas</div></div><span class="cbadge" id="b_sc"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:var(--g)"></div>Solicitud de servicio</div><div class="li"><div class="ld" style="background:var(--r)"></div>Incidente</div></div>
+    <canvas id="cTipoCol" height="220"></canvas>
+  </div>
+</div>
+
+<!-- 4. ÁREA USUARIA -->
+<div class="sec">Área Usuaria (Request Type)</div>
+<div class="g21">
+  <div class="card">
+    <div class="ch"><div><div class="ct">Área Usuaria</div><div class="cs">Solicitudes e incidentes por tipo de solicitud (Request Type)</div></div><span class="cbadge" id="b_area"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:var(--g)"></div>Solicitud de servicio</div><div class="li"><div class="ld" style="background:var(--r)"></div>Incidente</div></div>
+    <canvas id="cArea" height="210"></canvas>
+  </div>
+  <div class="card">
+    <div class="ch"><div><div class="ct">Área Usuaria</div><div class="cs">Distribución circular</div></div><span class="cbadge" id="b_areap"></span></div>
+    <canvas id="cAreaPie" height="210"></canvas>
+  </div>
+</div>
+
+<!-- 5. APLICACIONES -->
+<div class="sec">Aplicaciones</div>
+<div class="g2">
+  <div class="card">
+    <div class="ch"><div><div class="ct">Aplicaciones</div><div class="cs">Por tipo de aplicación – barras</div></div><span class="cbadge" id="b_app"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:var(--g)"></div>Solicitud de servicio</div><div class="li"><div class="ld" style="background:var(--r)"></div>Incidente</div></div>
+    <canvas id="cAppBar" height="220"></canvas>
+  </div>
+  <div class="card">
+    <div class="ch"><div><div class="ct">Aplicaciones</div><div class="cs">Distribución circular total</div></div><span class="cbadge" id="b_appp"></span></div>
+    <canvas id="cAppPie" height="220"></canvas>
+  </div>
+</div>
+
+<!-- 6. ESPECIALISTA -->
+<div class="sec">Especialista Asignado</div>
+<div class="g2">
+  <div class="card">
+    <div class="ch"><div><div class="ct">Especialista Asignado</div><div class="cs">Persona asignada por tipo – columnas</div></div><span class="cbadge" id="b_esp"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:var(--g)"></div>Solicitud de servicio</div><div class="li"><div class="ld" style="background:var(--r)"></div>Incidente</div></div>
+    <canvas id="cEspCol" height="220"></canvas>
+  </div>
+  <div class="card">
+    <div class="ch"><div><div class="ct">Especialista Asignado</div><div class="cs">Distribución circular</div></div><span class="cbadge" id="b_espp"></span></div>
+    <canvas id="cEspPie" height="220"></canvas>
+  </div>
+</div>
+
+<!-- 7. RECURRENTE -->
+<div class="sec">Solicitud Recurrente</div>
+<div class="g1">
+  <div class="card">
+    <div class="ch"><div><div class="ct">Solicitud Recurrente</div><div class="cs">Top solicitudes repetidas en el período (campo Resumen)</div></div><span class="cbadge" id="b_rec"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:#6366f1"></div>Cantidad de ocurrencias</div></div>
+    <canvas id="cRecBar" height="110"></canvas>
+  </div>
+</div>
+
+<!-- 8. USUARIO REPORTA -->
+<div class="sec">Usuario Reporta (Informador)</div>
+<div class="g21">
+  <div class="card">
+    <div class="ch"><div><div class="ct">Usuario Reporta</div><div class="cs">Top informadores por tipo de ticket</div></div><span class="cbadge" id="b_usr"></span></div>
+    <div class="leg"><div class="li"><div class="ld" style="background:var(--g)"></div>Solicitud de servicio</div><div class="li"><div class="ld" style="background:var(--r)"></div>Incidente</div></div>
+    <canvas id="cUsrBar" height="200"></canvas>
+  </div>
+  <div class="card">
+    <div class="ch"><div><div class="ct">Usuario Reporta</div><div class="cs">Distribución circular</div></div><span class="cbadge" id="b_usrp"></span></div>
+    <canvas id="cUsrPie" height="200"></canvas>
+  </div>
+</div>
+
+<!-- AUDIO RESUMEN IA -->
+<div class="audio-wrap">
+  <div class="aud-icon">🎙️</div>
+  <div class="aud-info">
+    <div class="aud-title">Resumen Ejecutivo – <span class="ai-badge">✦ IA</span> Generado por Claude</div>
+    <div class="aud-desc" id="aud-desc">Síntesis narrada de indicadores · Haz clic en ▶ para escuchar</div>
+    <div class="aud-row">
+      <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+      <div class="prog-wrap">
+        <input type="range" class="prog" id="progBar" value="0" min="0" max="100" step="0.1" oninput="seekAudio(this.value)">
+        <div class="times"><span class="tlbl" id="tCur">0:00</span><span class="tlbl" id="tTot">—</span></div>
+      </div>
+      <div class="vol-row"><span class="vol-ico">🔊</span><input type="range" class="vol" id="volSlider" value="90" min="0" max="100" oninput="setVol(this.value)"></div>
+    </div>
+  </div>
+  <div class="aud-stats">
+    <div class="ast"><div class="ast-v" id="as1">—</div><div class="ast-l">Total</div></div>
+    <div class="ast"><div class="ast-v" id="as2">—</div><div class="ast-l">Solicitudes</div></div>
+    <div class="ast"><div class="ast-v" id="as3">—</div><div class="ast-l">Incidentes</div></div>
+  </div>
+</div>
+
+<!-- 9. TABLA PENDIENTES -->
+<div class="sec">Tickets Pendientes de Atención</div>
+<div class="tcard">
+  <div class="th">
+    <div>
+      <div class="ct">Tickets Activos – Requieren Gestión</div>
+      <div class="tbgs">
+        <span class="tbg te">● Escalado</span>
+        <span class="tbg th2">● Esperando por ayuda</span>
+        <span class="tbg th2">● Esperando por el cliente</span>
+      </div>
+    </div>
+    <span style="font-size:11px;color:var(--lt)" id="pendCount">—</span>
+  </div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Clave</th><th>Creada</th><th>Tipo de Solicitud</th><th>Estado</th>
+        <th>Resumen</th><th>Área Usuario</th><th>Informador</th>
+        <th>Persona Asignada</th><th>Participantes / T</th>
+      </tr></thead>
+      <tbody id="tbody"><tr><td colspan="9" style="text-align:center;color:var(--lt);padding:24px">Cargando tickets...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footer">Fuente: Jira Service Management · efletexia.atlassian.net · Proyecto Mesa de Ayuda (TK)</div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

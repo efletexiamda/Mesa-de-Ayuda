@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════
-//  api/jira.js  —  Vercel Serverless Function (CommonJS)
-//  Consulta Jira Service Management con API Token
-//  Usa /rest/api/3/search/jql (API actualizada de Atlassian)
-// ═══════════════════════════════════════════════════════════
 module.exports = async function handler(req, res) {
 
   res.setHeader('Access-Control-Allow-Origin',  '*');
@@ -16,9 +11,7 @@ module.exports = async function handler(req, res) {
   const JIRA_PROJ  = process.env.JIRA_PROJECT_KEY || 'TK';
 
   if (!JIRA_EMAIL || !JIRA_TOKEN) {
-    return res.status(500).json({
-      error: 'Faltan variables de entorno: JIRA_EMAIL y JIRA_TOKEN'
-    });
+    return res.status(500).json({ error: 'Faltan variables de entorno: JIRA_EMAIL y JIRA_TOKEN' });
   }
 
   const auth = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64');
@@ -31,35 +24,36 @@ module.exports = async function handler(req, res) {
   const body   = req.method === 'POST' ? (req.body || {}) : (req.query || {});
   const action = body.action;
 
-  // ── HELPER: GET simple ────────────────────────────────────
+  // ── GET simple ───────────────────────────────────────────
   async function jiraGet(path) {
     const r = await fetch(`${JIRA_URL}/rest/api/3${path}`, { headers });
-    if (!r.ok) {
-      const txt = await r.text();
-      throw new Error(`Jira API ${r.status}: ${txt.slice(0, 300)}`);
-    }
+    if (!r.ok) throw new Error(`Jira API ${r.status}: ${await r.text().then(t=>t.slice(0,300))}`);
     return r.json();
   }
 
-  // ── HELPER: búsqueda JQL con nueva API ───────────────────
+  // ── Búsqueda JQL via GET con query params ────────────────
+  // Atlassian eliminó POST /search y el nuevo POST /search/jql
+  // tiene payload distinto. Usamos GET /search que es estable.
   async function searchJQL(jql, fields, maxResults = 100) {
     const allIssues = [];
     let startAt = 0;
 
     while (true) {
-      // Nueva URL: /rest/api/3/search/jql (reemplaza /rest/api/3/search)
-      const r = await fetch(`${JIRA_URL}/rest/api/3/search/jql`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ jql, fields, maxResults, startAt })
+      const params = new URLSearchParams({
+        jql,
+        maxResults,
+        startAt,
+        fields: fields.join(',')
       });
+
+      const r = await fetch(`${JIRA_URL}/rest/api/3/search?${params}`, { headers });
 
       if (!r.ok) {
         const txt = await r.text();
         throw new Error(`Jira search ${r.status}: ${txt.slice(0, 400)}`);
       }
 
-      const data = await r.json();
+      const data   = await r.json();
       const issues = data.issues || [];
       allIssues.push(...issues);
 
@@ -71,8 +65,8 @@ module.exports = async function handler(req, res) {
     return allIssues;
   }
 
-  // ── HELPER: formatear issue ───────────────────────────────
-  function formatIssue(iss) {
+  // ── Formatear issue ──────────────────────────────────────
+  function fmt(iss) {
     const f = iss.fields || {};
     return {
       key:         iss.key,
@@ -94,29 +88,20 @@ module.exports = async function handler(req, res) {
     'created','components','labels','priority','customfield_10010'
   ];
 
-  // ══════════════════════════════════════════════════════════
-  //  ACCIÓN: getProjectInfo
-  // ══════════════════════════════════════════════════════════
+  // ── getProjectInfo ───────────────────────────────────────
   if (action === 'getProjectInfo') {
     try {
       const data = await jiraGet(`/project/${JIRA_PROJ}`);
-      return res.status(200).json({
-        key:  data.key,
-        name: data.name,
-        url:  JIRA_URL
-      });
+      return res.status(200).json({ key: data.key, name: data.name, url: JIRA_URL });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  ACCIÓN: getMonthTickets
-  // ══════════════════════════════════════════════════════════
+  // ── getMonthTickets ──────────────────────────────────────
   if (action === 'getMonthTickets') {
     const { year, month } = body;
-    if (!year || !month)
-      return res.status(400).json({ error: 'Faltan: year, month' });
+    if (!year || !month) return res.status(400).json({ error: 'Faltan: year, month' });
 
     const pad  = n => String(n).padStart(2, '0');
     const y    = parseInt(year,  10);
@@ -127,20 +112,18 @@ module.exports = async function handler(req, res) {
 
     try {
       const issues = await searchJQL(jql, FIELDS, 100);
-      return res.status(200).json({ issues: issues.map(formatIssue) });
+      return res.status(200).json({ issues: issues.map(fmt) });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  ACCIÓN: getPendingTickets
-  // ══════════════════════════════════════════════════════════
+  // ── getPendingTickets ────────────────────────────────────
   if (action === 'getPendingTickets') {
     const jql = `project = "${JIRA_PROJ}" AND statusCategory != Done ORDER BY created ASC`;
     try {
       const issues = await searchJQL(jql, FIELDS, 100);
-      return res.status(200).json({ pending: issues.map(formatIssue) });
+      return res.status(200).json({ pending: issues.map(fmt) });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }

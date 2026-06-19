@@ -195,10 +195,10 @@ async function loadFromJira() {
       tipo: isInc(iss)?'inc':'sol',
       est:  mapStatus(iss.status),
       res:  iss.summary||'',
-      area: iss.requesttype||'—',
+      area: iss.area || iss.requesttype||'—',
       inf:  iss.reporter||'—',
       asig: iss.assignee||'Sin asignar',
-      part: (iss.components||[])[0]||'—'
+      part: (iss.participants||[]).join(', ') || (iss.components||[])[0] || '—'
     }));
 
     /* 3 · Render */
@@ -274,10 +274,12 @@ function demoData() {
   ];
   rng.forEach(({year,month},i)=>{ D[mkey(year,month)]=B[i%3]; });
   PENDING=[
-    {key:'TK-542',cr:'15/05/2026',tipo:'sol',est:'Esp. ayuda',res:'Agregar Boton descargable Descarga QR Cliente',area:'Aplicacion T1',inf:'Cesar C.',asig:'Sin asignar',part:'Aplicaciones'},
-    {key:'TK-507',cr:'11/05/2026',tipo:'inc',est:'Escalado',res:'Duplicación de clientes en el ruteador - URGENTE',area:'Aplicacion T1',inf:'Soporte Efletexia',asig:'Andres Medina',part:'Falla con Aplicación'},
-    {key:'TK-494',cr:'07/05/2026',tipo:'inc',est:'Esp. ayuda',res:'Aceptacion automatica de ofertas Refs Hijo CRISAR',area:'Aplicacion T1',inf:'Cesar C.',asig:'Sin asignar',part:'Falla con Aplicación'},
-    {key:'TK-411',cr:'23/04/2026',tipo:'sol',est:'Escalado',res:'ACTIVACION VISIT TYPE AJE COLOMBIA',area:'Aplicacion T2',inf:'Andres Medina',asig:'Andres Medina',part:'Aplicaciones'}
+    {key:'TK-648',cr:'16/06/2026',tipo:'inc',est:'Esp. ayuda',res:'Error en mis cargas Ambiente : Transportista',area:'Operaciones',inf:'Cesar C.',asig:'Sin asignar',part:'Eric Cacho'},
+    {key:'TK-647',cr:'16/06/2026',tipo:'inc',est:'Esp. ayuda',res:'Datos para confirmar en nueva TC',area:'Operaciones',inf:'Cesar C.',asig:'Sin asignar',part:'—'},
+    {key:'TK-646',cr:'16/06/2026',tipo:'inc',est:'Esp. ayuda',res:'Regresar referencia a prefactura para rechazo',area:'Operaciones',inf:'Verónica Méndez',asig:'Sin asignar',part:'—'},
+    {key:'TK-542',cr:'14/05/2026',tipo:'sol',est:'Esp. ayuda',res:'Agregar Boton descargable Descarga QR Cliente',area:'TI',inf:'Cesar C.',asig:'Sin asignar',part:'Eric Cacho'},
+    {key:'TK-507',cr:'10/05/2026',tipo:'inc',est:'Escalado',res:'Duplicación de clientes en el ruteador - URGENTE',area:'Operaciones',inf:'Soporte Efletexia',asig:'Andres Medina',part:'Eric Cacho, Cesar C.'},
+    {key:'TK-411',cr:'22/04/2026',tipo:'sol',est:'Escalado',res:'ACTIVACION VISIT TYPE AJE COLOMBIA',area:'Admin. & Finanzas',inf:'Andres Medina',asig:'Andres Medina',part:'—'}
   ];
   updateTabs(); cur=0; tabClass();
   const ps=rng.map(({year,month})=>mlbl(year,month)).join(' – ');

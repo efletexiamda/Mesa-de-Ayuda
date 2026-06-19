@@ -140,8 +140,8 @@ function processIssues(issues=[]) {
     const st   = mapStatus(iss.status);
     const tipo = (iss.issuetype||'').toLowerCase().includes('proyecto') ? 'Proyecto'
                  : t==='inc' ? 'Incidente de [System]' : 'Solicitud de servicio';
-    const area = mapArea(iss.requesttype) || (t==='inc' ? 'Falla con Aplicación' : 'Sin área');
-    const app  = extractApp(iss);
+    const area = iss.area || 'Sin área';  // Area Usuario: Operaciones, TI, Admin. & Finanzas, etc.
+    const app  = iss.apptype || extractApp(iss);  // Tipo de Aplicación
     const esp  = iss.assignee || 'Sin asignar';
     const inf  = iss.reporter || 'Desconocido';
 

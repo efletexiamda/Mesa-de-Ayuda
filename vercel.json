@@ -1,7 +1,7 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/api/jira", "dest": "/api/jira.js" },
-    { "src": "/(.*)",     "dest": "/public/$1"   }
+    { "src": "/api/jira", "dest": "/API/jira.js" },
+    { "src": "/(.*)",     "dest": "/público/$1"  }
   ]
 }

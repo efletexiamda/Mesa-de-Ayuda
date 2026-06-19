@@ -130,7 +130,8 @@ function processIssues(issues=[]) {
   const d = {sol:0,inc:0,
     estado:{sol:{},inc:{}}, tipo:{sol:{},inc:{}},
     area:{sol:{},inc:{}},   apps:{sol:{},inc:{}},
-    esp:{sol:{},inc:{}},    inf:{sol:{},inc:{}}, rec:[]};
+    esp:{sol:{},inc:{}},    inf:{sol:{},inc:{}},
+    part:{}, rec:[]};
   const sc = {};
 
   for (const iss of issues) {
@@ -151,6 +152,10 @@ function processIssues(issues=[]) {
     d.apps[t][app]   = (d.apps[t][app]   ||0)+1;
     d.esp[t][esp]    = (d.esp[t][esp]    ||0)+1;
     d.inf[t][inf]    = (d.inf[t][inf]    ||0)+1;
+    // Participantes de la solicitud
+    for (const p of (iss.participants||[])) {
+      d.part[p] = (d.part[p]||0)+1;
+    }
 
     if (iss.summary) {
       const k = iss.summary.trim().toUpperCase();
@@ -321,13 +326,15 @@ function merged() {
   const ks=Object.keys(D);
   const m={sol:0,inc:0,estado:{sol:{},inc:{}},tipo:{sol:{},inc:{}},
            area:{sol:{},inc:{}},apps:{sol:{},inc:{}},esp:{sol:{},inc:{}},
-           inf:{sol:{},inc:{}},rec:[]};
+           inf:{sol:{},inc:{}},part:{},rec:[]};
   for(const k of ks){
     const d=D[k]; m.sol+=d.sol; m.inc+=d.inc;
     for(const t of['sol','inc'])
       for(const c of['estado','tipo','area','apps','esp','inf'])
         for(const[kk,v]of Object.entries(d[c][t]||{}))
           m[c][t][kk]=(m[c][t][kk]||0)+v;
+    for(const[kk,v]of Object.entries(d.part||{}))
+      m.part[kk]=(m.part[kk]||0)+v;
     for(const[kk,v]of(d.rec||[])){
       const idx=m.rec.findIndex(([x])=>x===kk);
       idx>=0?m.rec[idx][1]+=v:m.rec.push([kk,v]);
@@ -346,7 +353,7 @@ function curLabel() {
 ══════════════════════════════════════════════════════════ */
 function renderAll() {
   const d=getD(), L=curLabel();
-  ['b_es','b_ei','b_sp','b_sc','b_area','b_areap','b_app','b_appp','b_esp','b_espp','b_rec','b_usr','b_usrp']
+  ['b_es','b_ei','b_sp','b_sc','b_area','b_areap','b_app','b_appp','b_esp','b_espp','b_rec','b_usr','b_usrp','b_part','b_partp']
     .forEach(id=>{ const el=_id(id); if(el) el.textContent=L; });
   renderKPIs(d); renderCharts(d);
 }
@@ -418,6 +425,13 @@ function renderCharts(d) {
   const iK=iTop.map(([k])=>k);
   gbar('cUsrBar',iK,iK.map(k=>d.inf.sol[k]||0),iK.map(k=>d.inf.inc[k]||0),true);
   pie('cUsrPie',iK,iTop.map(([,v])=>v),PC);
+
+  // Participantes de la solicitud
+  const partAll = Object.entries(d.part||{}).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const partK   = partAll.map(([k])=>k);
+  const partV   = partAll.map(([,v])=>v);
+  sBar('cPartBar', partK, partV, '#0ea5e9', true);
+  pie('cPartPie',  partK, partV, ['#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#0284c7','#0369a1','#075985','#0c4a6e']);
 }
 
 /* TABLE */

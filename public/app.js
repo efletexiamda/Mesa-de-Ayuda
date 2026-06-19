@@ -17,7 +17,7 @@ const CH    = {};
 /* ── Paletas ────────────────────────────────────────────── */
 const G  = '#16a34a', R = '#dc2626';
 const PC = ['#22c55e','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#64748b','#ec4899','#14b8a6'];
-const AC = ['#3b82f6','#8b5cf6','#f59e0b','#64748b','#ec4899'];
+const AC = ['#3b82f6','#f59e0b','#22c55e','#8b5cf6','#ec4899','#64748b','#14b8a6'];
 const EK = ['Resuelto','Cancelado','Esp. ayuda','Esp. cliente','Escalado'];
 const EC = ['#22c55e','#f59e0b','#3b82f6','#8b5cf6','#ef4444'];
 
@@ -94,6 +94,23 @@ function mapStatus(s) {
   return 'Esp. ayuda'; // ESPERANDO POR AYUDA y cualquier otro
 }
 
+// Áreas usuarias reales de Jira Mesa de Ayuda Efletexia
+const AREAS_JIRA = ['Operaciones','Admin. & Finanzas','TI','Torre de Control',
+                    'Recursos Humanos','Marketing','Proyectos'];
+
+function mapArea(rt) {
+  if (!rt) return 'Sin área';
+  const v = rt.toLowerCase();
+  if (v.includes('operacion'))                          return 'Operaciones';
+  if (v.includes('admin') || v.includes('finanza'))     return 'Admin. & Finanzas';
+  if (v==='ti'||v.includes(' ti ')||v.startsWith('ti ')||v.endsWith(' ti')) return 'TI';
+  if (v.includes('torre') || v.includes('control'))     return 'Torre de Control';
+  if (v.includes('recurso')||v.includes('humano')||v.includes('rrhh')) return 'Recursos Humanos';
+  if (v.includes('market'))                             return 'Marketing';
+  if (v.includes('proyecto'))                           return 'Proyectos';
+  return rt;
+}
+
 function extractApp(iss) {
   if (iss.components?.length) return iss.components[0];
   for (const l of (iss.labels||[])) {
@@ -105,7 +122,7 @@ function extractApp(iss) {
   const s = (iss.summary||'').toLowerCase();
   if (s.includes('aplicacion t1')||s.includes('app t1')) return 'Aplicacion T1';
   if (s.includes('aplicacion t2')||s.includes('app t2')) return 'Aplicacion T2';
-  if (s.includes('torre')||s.includes('control'))        return 'Torre de Control';
+  if (s.includes('torre')||s.includes('control'))         return 'Torre de Control';
   return 'Sin app';
 }
 
@@ -123,7 +140,7 @@ function processIssues(issues=[]) {
     const st   = mapStatus(iss.status);
     const tipo = (iss.issuetype||'').toLowerCase().includes('proyecto') ? 'Proyecto'
                  : t==='inc' ? 'Incidente de [System]' : 'Solicitud de servicio';
-    const area = iss.requesttype || (t==='inc' ? 'Falla con Aplicación' : 'Aplicaciones');
+    const area = mapArea(iss.requesttype) || (t==='inc' ? 'Falla con Aplicación' : 'Sin área');
     const app  = extractApp(iss);
     const esp  = iss.assignee || 'Sin asignar';
     const inf  = iss.reporter || 'Desconocido';
@@ -246,9 +263,9 @@ function topK(obj) {
 function demoData() {
   const rng=defaultRange(); MONTHS=rng; D={};
   const B=[
-    {sol:50,inc:50,estado:{sol:{Resuelto:50,Cancelado:0,Escalado:0,'Esp. ayuda':0},inc:{Resuelto:48,Cancelado:0,Escalado:0,'Esp. ayuda':2}},tipo:{sol:{'Solicitud de servicio':50},inc:{'Incidente de [System]':47,'Proyecto':3}},area:{sol:{Aplicaciones:35,'Accesos a Sistemas':12,Software:2,Hardware:1},inc:{'Falla con Aplicación':47,'Accesos a Sistemas':1,Aplicaciones:2}},apps:{sol:{'Aplicacion T1':27,'Aplicacion T2':2,'Torre de Control':3,'Sin app':18},inc:{'Aplicacion T1':26,'Aplicacion T2':7,'Torre de Control':6,'Sin app':11}},esp:{sol:{'Soporte Efletexia':12,'Andres Medina':10,'Sin asignar':28},inc:{'Andres Medina':15,'Soporte Efletexia':3,'Sin asignar':32}},rec:[['Liberacion de Pedidos',6],['Cambios de placa - Aje Col',3],['REFERENCIAS A ELIMINAR DEL OPL',3],['REFERENCIA 961201 NO APARECE EN OPL',2],['DIFERENCIA DE MONTO OPL ORIENTE',2]],inf:{sol:{'Eric Cacho':20,'Soporte Efletexia':13,'Andres Medina':4,'Daniela':3,'Otros':10},inc:{'Eric Cacho':4,'Andres Medina':15,'Soporte Efletexia':3,'Cesar C.':9,'Otros':19}}},
-    {sol:80,inc:20,estado:{sol:{Resuelto:79,Cancelado:1,Escalado:0,'Esp. ayuda':0},inc:{Resuelto:20,Cancelado:0,Escalado:0,'Esp. ayuda':0}},tipo:{sol:{'Solicitud de servicio':80},inc:{'Incidente de [System]':20}},area:{sol:{Aplicaciones:52,'Accesos a Sistemas':10,Software:18},inc:{'Falla con Aplicación':18,'Falla de Infraestructura':1,'Problema con Accesos':1}},apps:{sol:{'Aplicacion T1':54,'Aplicacion T2':7,'Torre de Control':1,'Sin app':18},inc:{'Aplicacion T1':10,'Aplicacion T2':5,'Torre de Control':4,'Otros':1}},esp:{sol:{'Andres Medina':9,'Soporte Efletexia':8,'Sin asignar':63},inc:{'Andres Medina':7,'Soporte Efletexia':1,'Sin asignar':12}},rec:[['Liberacion de Pedidos',7],['REFERENCIAS A ELIMINAR DEL OPL',3],['Liberación viajes',2]],inf:{sol:{'Eric Cacho':24,'Soporte Efletexia':7,'Andres Medina':7,'Daniela':7,'Otros':35},inc:{'Eric Cacho':3,'Andres Medina':6,'Cesar Castañeda':2,'Otros':9}}},
-    {sol:69,inc:31,estado:{sol:{Resuelto:51,Cancelado:12,Escalado:0,'Esp. ayuda':6},inc:{Resuelto:28,Cancelado:1,Escalado:1,'Esp. ayuda':1}},tipo:{sol:{'Solicitud de servicio':69},inc:{'Incidente de [System]':31}},area:{sol:{Aplicaciones:52,'Accesos a Sistemas':6,Software:11},inc:{'Falla con Aplicación':27,'Falla de Software':1,'Problema con Accesos':3}},apps:{sol:{'Aplicacion T1':54,'Aplicacion T2':1,'Torre de Control':2,'Sin app':12},inc:{'Aplicacion T1':25,'Aplicacion T2':2,'Torre de Control':1,'Sin app':3}},esp:{sol:{'Soporte Efletexia':8,'Andres Medina':2,'Sin asignar':59},inc:{'Andres Medina':4,'Soporte Efletexia':3,'Sin asignar':24}},rec:[['REVISION DE APROBACIONES',3],['Aprobación por Incremento en Tarifa',2],['REFERENCIAS A ELIMINAR DEL OPL',2]],inf:{sol:{'Eric Cacho':25,'Cesar C.':14,'Adm2 CRISAR':7,'Daniela':5,'Otros':18},inc:{'Cesar C.':15,'Verónica Méndez':6,'Eric Cacho':4,'Otros':6}}}
+    {sol:50,inc:50,estado:{sol:{Resuelto:50,Cancelado:0,Escalado:0,'Esp. ayuda':0},inc:{Resuelto:48,Cancelado:0,Escalado:0,'Esp. ayuda':2}},tipo:{sol:{'Solicitud de servicio':50},inc:{'Incidente de [System]':47,'Proyecto':3}},area:{sol:{Operaciones:20,'Torre de Control':8,TI:5,'Admin. & Finanzas':4,'Recursos Humanos':2,Marketing:1},inc:{Operaciones:25,'Torre de Control':12,TI:8,'Admin. & Finanzas':3,'Recursos Humanos':2}},apps:{sol:{'Aplicacion T1':27,'Aplicacion T2':2,'Torre de Control':3,'Sin app':18},inc:{'Aplicacion T1':26,'Aplicacion T2':7,'Torre de Control':6,'Sin app':11}},esp:{sol:{'Soporte Efletexia':12,'Andres Medina':10,'Sin asignar':28},inc:{'Andres Medina':15,'Soporte Efletexia':3,'Sin asignar':32}},rec:[['Liberacion de Pedidos',6],['Cambios de placa - Aje Col',3],['REFERENCIAS A ELIMINAR DEL OPL',3],['REFERENCIA 961201 NO APARECE EN OPL',2],['DIFERENCIA DE MONTO OPL ORIENTE',2]],inf:{sol:{'Eric Cacho':20,'Soporte Efletexia':13,'Andres Medina':4,'Daniela':3,'Otros':10},inc:{'Eric Cacho':4,'Andres Medina':15,'Soporte Efletexia':3,'Cesar C.':9,'Otros':19}}},
+    {sol:80,inc:20,estado:{sol:{Resuelto:79,Cancelado:1,Escalado:0,'Esp. ayuda':0},inc:{Resuelto:20,Cancelado:0,Escalado:0,'Esp. ayuda':0}},tipo:{sol:{'Solicitud de servicio':80},inc:{'Incidente de [System]':20}},area:{sol:{Operaciones:35,'Torre de Control':15,TI:12,'Admin. & Finanzas':10,'Recursos Humanos':5,Marketing:3},inc:{Operaciones:10,'Torre de Control':5,TI:4,'Admin. & Finanzas':1}},apps:{sol:{'Aplicacion T1':54,'Aplicacion T2':7,'Torre de Control':1,'Sin app':18},inc:{'Aplicacion T1':10,'Aplicacion T2':5,'Torre de Control':4,'Otros':1}},esp:{sol:{'Andres Medina':9,'Soporte Efletexia':8,'Sin asignar':63},inc:{'Andres Medina':7,'Soporte Efletexia':1,'Sin asignar':12}},rec:[['Liberacion de Pedidos',7],['REFERENCIAS A ELIMINAR DEL OPL',3],['Liberación viajes',2]],inf:{sol:{'Eric Cacho':24,'Soporte Efletexia':7,'Andres Medina':7,'Daniela':7,'Otros':35},inc:{'Eric Cacho':3,'Andres Medina':6,'Cesar Castañeda':2,'Otros':9}}},
+    {sol:69,inc:31,estado:{sol:{Resuelto:51,Cancelado:12,Escalado:0,'Esp. ayuda':6},inc:{Resuelto:28,Cancelado:1,Escalado:1,'Esp. ayuda':1}},tipo:{sol:{'Solicitud de servicio':69},inc:{'Incidente de [System]':31}},area:{sol:{Operaciones:30,'Torre de Control':18,TI:10,'Admin. & Finanzas':8,Marketing:2,'Recursos Humanos':1},inc:{Operaciones:15,'Torre de Control':8,TI:5,'Admin. & Finanzas':3}},apps:{sol:{'Aplicacion T1':54,'Aplicacion T2':1,'Torre de Control':2,'Sin app':12},inc:{'Aplicacion T1':25,'Aplicacion T2':2,'Torre de Control':1,'Sin app':3}},esp:{sol:{'Soporte Efletexia':8,'Andres Medina':2,'Sin asignar':59},inc:{'Andres Medina':4,'Soporte Efletexia':3,'Sin asignar':24}},rec:[['REVISION DE APROBACIONES',3],['Aprobación por Incremento en Tarifa',2],['REFERENCIAS A ELIMINAR DEL OPL',2]],inf:{sol:{'Eric Cacho':25,'Cesar C.':14,'Adm2 CRISAR':7,'Daniela':5,'Otros':18},inc:{'Cesar C.':15,'Verónica Méndez':6,'Eric Cacho':4,'Otros':6}}}
   ];
   rng.forEach(({year,month},i)=>{ D[mkey(year,month)]=B[i%3]; });
   PENDING=[

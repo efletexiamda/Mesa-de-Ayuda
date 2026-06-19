@@ -23,16 +23,17 @@ module.exports = async function handler(req, res) {
   const body   = req.method === 'POST' ? (req.body || {}) : (req.query || {});
   const action = body.action;
 
-  // Campo exacto de Area Usuario en Jira Efletexia
-  const AREA_FIELD    = 'customfield_10393';
+  const AREA_FIELD    = 'customfield_10393'; // Area Usuario
   const APPTYPE_FIELD = 'customfield_10360'; // Tipo de Aplicación
+  const PART_FIELD    = 'customfield_10279'; // Participantes de la solicitud
 
   const FIELDS = [
     'summary','status','issuetype','assignee','reporter',
     'created','components','labels','priority',
-    'customfield_10010', // Tipo de solicitud (requestType)
-    AREA_FIELD,          // Area Usuario
-    APPTYPE_FIELD        // Tipo de Aplicación
+    'customfield_10010', // Tipo de solicitud
+    AREA_FIELD,
+    APPTYPE_FIELD,
+    PART_FIELD
   ];
 
   async function jiraGet(path) {
@@ -67,11 +68,10 @@ module.exports = async function handler(req, res) {
     if (v.includes('CANCELADO') || v.includes('CANCELLED') || v.includes('CANCELED')) return 'Cancelado';
     if (v.includes('ESCALADO')  || v.includes('ESCALATED'))                            return 'Escalado';
     if (v.includes('ESPERANDO POR EL CLIENTE') || v.includes('WAITING FOR CUSTOMER')) return 'Esp. cliente';
-    return 'Esp. ayuda'; // ESPERANDO POR AYUDA
+    return 'Esp. ayuda';
   }
 
-  function getAreaUsuaria(f) {
-    // customfield_10393 = Area Usuario — valor tipo: { value: "Operaciones", id: "10147" }
+  function getArea(f) {
     const raw = f[AREA_FIELD];
     if (!raw) return 'Sin área';
     if (typeof raw === 'string') return raw;
@@ -81,14 +81,19 @@ module.exports = async function handler(req, res) {
     return 'Sin área';
   }
 
-  function getTipoApp(f) {
-    // customfield_10360 = Tipo de Aplicación — valor tipo: { value: "Aplicación T1", id: "10112" }
+  function getAppType(f) {
     const raw = f[APPTYPE_FIELD];
     if (!raw) return 'Sin app';
     if (typeof raw === 'string') return raw;
     if (raw.value) return raw.value;
     if (raw.name)  return raw.name;
     return 'Sin app';
+  }
+
+  function getParticipants(f) {
+    const raw = f[PART_FIELD];
+    if (!raw || !Array.isArray(raw)) return [];
+    return raw.map(p => p.displayName || p.name || '').filter(Boolean);
   }
 
   function fmt(iss) {
@@ -100,8 +105,9 @@ module.exports = async function handler(req, res) {
       statusMapped: mapStatus(f.status?.name),
       issuetype:    f.issuetype?.name || '',
       requesttype:  f.customfield_10010?.requestType?.name || f.issuetype?.name || '',
-      area:         getAreaUsuaria(f),   // ← Area Usuario real (Operaciones, TI, etc.)
-      apptype:      getTipoApp(f),       // ← Tipo de Aplicación (Aplicación T1, T2, etc.)
+      area:         getArea(f),
+      apptype:      getAppType(f),
+      participants: getParticipants(f),
       assignee:     f.assignee?.displayName || 'Sin asignar',
       reporter:     f.reporter?.displayName || 'Desconocido',
       created:      (f.created || '').slice(0, 10),

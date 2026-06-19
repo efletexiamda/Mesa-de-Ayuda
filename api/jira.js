@@ -29,7 +29,6 @@ module.exports = async function handler(req, res) {
     return r.json();
   }
 
-  // Usa POST /rest/api/3/search/jql con el payload correcto
   async function search(jql, maxResults = 100) {
     const all = [];
     let startAt = 0;
@@ -37,10 +36,9 @@ module.exports = async function handler(req, res) {
                     'created','components','labels','priority','customfield_10010'];
     while (true) {
       const r = await fetch(`${JIRA_URL}/rest/api/3/search/jql`, {
-        method: 'POST',
+        method:  'POST',
         headers: H,
-        body: JSON.stringify({ jql, fields, maxResults, startAt,
-                               fieldsByKeys: false, expand: [] })
+        body:    JSON.stringify({ jql, fields, maxResults, startAt })
       });
       if (!r.ok) throw new Error(`Jira search ${r.status}: ${(await r.text()).slice(0,300)}`);
       const data = await r.json();

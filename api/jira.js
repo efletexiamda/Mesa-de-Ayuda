@@ -23,7 +23,8 @@ module.exports = async function handler(req, res) {
   const body   = req.method === 'POST' ? (req.body || {}) : (req.query || {});
   const action = body.action;
 
-  const FIELDS = 'summary,status,issuetype,assignee,reporter,created,components,labels,priority,customfield_10010';
+  const FIELDS = ['summary','status','issuetype','assignee','reporter',
+                  'created','components','labels','priority','customfield_10010'];
 
   async function jiraGet(path) {
     const r = await fetch(`${JIRA_URL}/rest/api/3${path}`, { headers: H });
@@ -31,28 +32,29 @@ module.exports = async function handler(req, res) {
     return r.json();
   }
 
-  // Usa GET con query params — el método más compatible con todas las versiones de Jira Cloud
+  // Nueva API con nextPageToken (reemplaza startAt)
   async function search(jql, maxResults = 100) {
     const all = [];
-    let startAt = 0;
+    let nextPageToken = null;
+
     while (true) {
-      const params = new URLSearchParams({
-        jql:        jql,
-        maxResults: String(maxResults),
-        startAt:    String(startAt),
-        fields:     FIELDS
+      const payload = { jql, fields: FIELDS, maxResults };
+      if (nextPageToken) payload.nextPageToken = nextPageToken;
+
+      const r = await fetch(`${JIRA_URL}/rest/api/3/search/jql`, {
+        method:  'POST',
+        headers: H,
+        body:    JSON.stringify(payload)
       });
-      const r = await fetch(`${JIRA_URL}/rest/api/3/search?${params.toString()}`, {
-        method:  'GET',
-        headers: H
-      });
+
       if (!r.ok) throw new Error(`Jira search ${r.status}: ${(await r.text()).slice(0,300)}`);
-      const data = await r.json();
+
+      const data   = await r.json();
       const issues = data.issues || [];
       all.push(...issues);
-      if (all.length >= (data.total || 0) || issues.length === 0) break;
-      startAt += issues.length;
-      if (all.length >= 500) break;
+
+      nextPageToken = data.nextPageToken || null;
+      if (!nextPageToken || issues.length === 0 || all.length >= 500) break;
     }
     return all;
   }

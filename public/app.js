@@ -18,8 +18,8 @@ const CH    = {};
 const G  = '#16a34a', R = '#dc2626';
 const PC = ['#22c55e','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#64748b','#ec4899','#14b8a6'];
 const AC = ['#3b82f6','#8b5cf6','#f59e0b','#64748b','#ec4899'];
-const EC = ['#22c55e','#f59e0b','#3b82f6','#ef4444'];
-const EK = ['Resuelto','Cancelado','Esp. ayuda','Escalado'];
+const EK = ['Resuelto','Cancelado','Esp. ayuda','Esp. cliente','Escalado'];
+const EC = ['#22c55e','#f59e0b','#3b82f6','#8b5cf6','#ef4444'];
 
 /* ══════════════════════════════════════════════════════════
    UTILIDADES FECHA
@@ -84,12 +84,14 @@ function isInc(iss) {
 }
 
 function mapStatus(s) {
+  // Estados reales de Jira Mesa de Ayuda Efletexia
   if (!s) return 'Esp. ayuda';
-  const v = s.toLowerCase();
-  if (v.includes('resolv')||v.includes('done')||v.includes('closed')||v.includes('complete')) return 'Resuelto';
-  if (v.includes('cancel')) return 'Cancelado';
-  if (v.includes('escal'))  return 'Escalado';
-  return 'Esp. ayuda';
+  const v = s.toUpperCase();
+  if (v.includes('RESUELTO') || v.includes('RESOLVED') || v.includes('DONE') || v.includes('CLOSED')) return 'Resuelto';
+  if (v.includes('CANCELADO') || v.includes('CANCELLED') || v.includes('CANCELED')) return 'Cancelado';
+  if (v.includes('ESCALADO')  || v.includes('ESCALATED')) return 'Escalado';
+  if (v.includes('ESPERANDO POR EL CLIENTE') || v.includes('WAITING FOR CUSTOMER')) return 'Esp. cliente';
+  return 'Esp. ayuda'; // ESPERANDO POR AYUDA y cualquier otro
 }
 
 function extractApp(iss) {

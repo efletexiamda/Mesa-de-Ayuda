@@ -416,10 +416,16 @@ function renderCharts(d) {
   gbar('cAppBar',apA,apA.map(k=>d.apps.sol[k]||0),apA.map(k=>d.apps.inc[k]||0),true);
   const apT={}; apA.forEach(k=>apT[k]=(d.apps.sol[k]||0)+(d.apps.inc[k]||0));
   pie('cAppPie',apA,Object.values(apT),['#3b82f6','#8b5cf6','#f59e0b','#64748b','#ec4899']);
-  const eA=[...new Set([...Object.keys(d.esp.sol),...Object.keys(d.esp.inc)])];
+  // Especialista: excluir "Sin asignar" del gráfico, mostrarlo solo en KPI
+  const eAll=[...new Set([...Object.keys(d.esp.sol),...Object.keys(d.esp.inc)])];
+  const eA = eAll.filter(k => k !== 'Sin asignar' && k !== 'Unassigned' && k !== '');
+  const sinAsignar = (d.esp.sol['Sin asignar']||0) + (d.esp.inc['Sin asignar']||0);
+  // Actualizar badge con info de sin asignar
+  const espBadge = document.getElementById('b_esp');
+  if (espBadge) espBadge.textContent = `${curLabel()} · Sin asignar: ${sinAsignar}`;
   gbar('cEspCol',eA,eA.map(k=>d.esp.sol[k]||0),eA.map(k=>d.esp.inc[k]||0));
   const eT={}; eA.forEach(k=>eT[k]=(d.esp.sol[k]||0)+(d.esp.inc[k]||0));
-  pie('cEspPie',eA,Object.values(eT),['#64748b','#3b82f6','#22c55e','#f59e0b']);
+  pie('cEspPie',eA,Object.values(eT),['#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ec4899','#64748b']);
   const rec=(Array.isArray(d.rec)?d.rec:Object.entries(d.rec)).slice(0,8);
   sBar('cRecBar',rec.map(([k])=>k.length>32?k.slice(0,30)+'…':k),rec.map(([,v])=>v),'#6366f1',true);
   const iA={}; [...Object.keys(d.inf.sol),...Object.keys(d.inf.inc)].forEach(k=>iA[k]=(d.inf.sol[k]||0)+(d.inf.inc[k]||0));

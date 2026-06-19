@@ -6,7 +6,7 @@ module.exports = async function handler(req, res) {
 
   const JIRA_EMAIL = process.env.JIRA_EMAIL;
   const JIRA_TOKEN = process.env.JIRA_TOKEN;
-  const JIRA_URL   = process.env.JIRA_URL || 'https://efletexia.atlassian.net';
+  const JIRA_URL   = process.env.JIRA_URL   || 'https://efletexia.atlassian.net';
   const JIRA_PROJ  = process.env.JIRA_PROJECT_KEY || 'TK';
 
   if (!JIRA_EMAIL || !JIRA_TOKEN) {
@@ -29,17 +29,23 @@ module.exports = async function handler(req, res) {
     return r.json();
   }
 
+  // Usa POST /rest/api/3/search/jql con el payload correcto
   async function search(jql, maxResults = 100) {
     const all = [];
     let startAt = 0;
-    const fields = 'summary,status,issuetype,assignee,reporter,created,components,labels,priority,customfield_10010';
+    const fields = ['summary','status','issuetype','assignee','reporter',
+                    'created','components','labels','priority','customfield_10010'];
     while (true) {
-      const url = `${JIRA_URL}/rest/api/3/search?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&startAt=${startAt}&fields=${fields}`;
-      const r = await fetch(url, { headers: H });
+      const r = await fetch(`${JIRA_URL}/rest/api/3/search/jql`, {
+        method: 'POST',
+        headers: H,
+        body: JSON.stringify({ jql, fields, maxResults, startAt,
+                               fieldsByKeys: false, expand: [] })
+      });
       if (!r.ok) throw new Error(`Jira search ${r.status}: ${(await r.text()).slice(0,300)}`);
       const data = await r.json();
       all.push(...(data.issues || []));
-      if (all.length >= (data.total || 0) || !(data.issues || []).length) break;
+      if (all.length >= (data.total || 0) || !(data.issues||[]).length) break;
       startAt += data.issues.length;
       if (all.length >= 500) break;
     }
@@ -72,20 +78,18 @@ module.exports = async function handler(req, res) {
   if (action === 'getMonthTickets') {
     const { year, month } = body;
     if (!year || !month) return res.status(400).json({ error: 'Faltan: year, month' });
-    const p  = n => String(n).padStart(2,'0');
-    const y  = parseInt(year, 10), m = parseInt(month, 10);
+    const p = n => String(n).padStart(2,'0');
+    const y = parseInt(year,10), m = parseInt(month,10);
     const jql = `project="${JIRA_PROJ}" AND created>="${y}-${p(m)}-01" AND created<="${y}-${p(m)}-${new Date(y,m,0).getDate()}" ORDER BY created DESC`;
     try {
-      const issues = await search(jql, 100);
-      return res.status(200).json({ issues: issues.map(fmt) });
+      return res.status(200).json({ issues: (await search(jql,100)).map(fmt) });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   if (action === 'getPendingTickets') {
     const jql = `project="${JIRA_PROJ}" AND statusCategory!="Done" ORDER BY created ASC`;
     try {
-      const issues = await search(jql, 100);
-      return res.status(200).json({ pending: issues.map(fmt) });
+      return res.status(200).json({ pending: (await search(jql,100)).map(fmt) });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 

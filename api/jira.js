@@ -32,31 +32,35 @@ module.exports = async function handler(req, res) {
     return r.json();
   }
 
-  // Nueva API con nextPageToken (reemplaza startAt)
+  // Nueva API Jira Cloud con nextPageToken
   async function search(jql, maxResults = 100) {
     const all = [];
     let nextPageToken = null;
-
     while (true) {
       const payload = { jql, fields: FIELDS, maxResults };
       if (nextPageToken) payload.nextPageToken = nextPageToken;
-
       const r = await fetch(`${JIRA_URL}/rest/api/3/search/jql`, {
-        method:  'POST',
-        headers: H,
-        body:    JSON.stringify(payload)
+        method: 'POST', headers: H, body: JSON.stringify(payload)
       });
-
       if (!r.ok) throw new Error(`Jira search ${r.status}: ${(await r.text()).slice(0,300)}`);
-
       const data   = await r.json();
       const issues = data.issues || [];
       all.push(...issues);
-
       nextPageToken = data.nextPageToken || null;
       if (!nextPageToken || issues.length === 0 || all.length >= 500) break;
     }
     return all;
+  }
+
+  // Mapeo exacto de estados reales de Jira Mesa de Ayuda
+  function mapStatus(statusName) {
+    if (!statusName) return 'Esperando por ayuda';
+    const s = statusName.toUpperCase();
+    if (s.includes('RESUELTO')  || s.includes('RESOLVED') || s.includes('DONE') || s.includes('CLOSED')) return 'Resuelto';
+    if (s.includes('CANCELADO') || s.includes('CANCELLED') || s.includes('CANCELED')) return 'Cancelado';
+    if (s.includes('ESCALADO')  || s.includes('ESCALATED')) return 'Escalado';
+    if (s.includes('ESPERANDO POR EL CLIENTE') || s.includes('WAITING FOR CUSTOMER')) return 'Esp. cliente';
+    return 'Esp. ayuda'; // ESPERANDO POR AYUDA y cualquier otro
   }
 
   function fmt(iss) {
@@ -65,6 +69,7 @@ module.exports = async function handler(req, res) {
       key:         iss.key,
       summary:     f.summary || '',
       status:      f.status?.name || '',
+      statusMapped: mapStatus(f.status?.name),
       issuetype:   f.issuetype?.name || '',
       requesttype: f.customfield_10010?.requestType?.name || f.issuetype?.name || '',
       assignee:    f.assignee?.displayName || 'Sin asignar',
@@ -93,8 +98,9 @@ module.exports = async function handler(req, res) {
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
+  // Pendientes: estados activos exactos de Mesa de Ayuda
   if (action === 'getPendingTickets') {
-    const jql = `project="${JIRA_PROJ}" AND statusCategory!="Done" ORDER BY created ASC`;
+    const jql = `project="${JIRA_PROJ}" AND status in ("Esperando por ayuda","Esperando por el cliente","Escalado") ORDER BY created ASC`;
     try {
       return res.status(200).json({ pending: (await search(jql,100)).map(fmt) });
     } catch (e) { return res.status(500).json({ error: e.message }); }

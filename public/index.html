@@ -415,6 +415,101 @@ tr:hover td{background:#fafbfc}
 <div class="footer" id="footer">Fuente: Jira Service Management · efletexia.atlassian.net · Proyecto Mesa de Ayuda (TK)</div>
 </div>
 
+
+<!-- ══ AGENTE IA ═══════════════════════════════════════ -->
+<button class="agent-fab" onclick="toggleAgent()" title="Agente IA Mesa de Ayuda">
+  🤖<div class="notif" id="agentNotif" style="display:none">1</div>
+</button>
+
+<div class="agent-panel" id="agentPanel">
+  <!-- Header -->
+  <div class="agent-header">
+    <div class="agent-avatar">🤖</div>
+    <div class="agent-hinfo">
+      <div class="agent-name">Agente IA · Mesa de Ayuda</div>
+      <div class="agent-status"><div class="agent-dot"></div>En línea · Powered by Claude</div>
+    </div>
+    <button class="agent-close" onclick="toggleAgent()">✕</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="agent-tabs">
+    <button class="agent-tab on" onclick="setAgentTab(0)" id="atab0">💬 Chat</button>
+    <button class="agent-tab"    onclick="setAgentTab(1)" id="atab1">🔁 Recurrentes</button>
+    <button class="agent-tab"    onclick="setAgentTab(2)" id="atab2">⚡ Resolver Ticket</button>
+  </div>
+
+  <!-- Tab 0: Chat -->
+  <div id="apanel0" class="agent-body">
+    <div class="quick-btns" id="quickBtns">
+      <button class="qbtn" onclick="quickMsg('¿Cómo liberar un pedido bloqueado?')">🔓 Liberar pedido</button>
+      <button class="qbtn" onclick="quickMsg('¿Cómo eliminar una referencia del OPL?')">🗑️ Eliminar referencia</button>
+      <button class="qbtn" onclick="quickMsg('¿Cómo cambiar la placa de un transportista?')">🚛 Cambio de placa</button>
+      <button class="qbtn" onclick="quickMsg('Hay diferencia de monto en prefactura')">💰 Diferencia monto</button>
+      <button class="qbtn" onclick="quickMsg('Un usuario no puede acceder al sistema')">🔑 Problema acceso</button>
+    </div>
+    <div class="chat-msgs" id="chatMsgs">
+      <div class="msg bot">¡Hola! Soy el Agente IA de Mesa de Ayuda de <strong>Efletexia</strong>. Puedo ayudarte a resolver casos de soporte, consultar tickets similares resueltos y sugerir soluciones. ¿En qué te ayudo?</div>
+    </div>
+    <div id="typingIndicator" style="display:none">
+      <div class="typing"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+  <div class="chat-input-wrap" id="chatInputWrap">
+    <textarea class="chat-input" id="chatInput" placeholder="Describe el problema o pregunta..." rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"
+      oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+    <button class="chat-send" onclick="sendChat()" id="chatSendBtn">➤</button>
+  </div>
+
+  <!-- Tab 1: Recurrentes -->
+  <div id="apanel1" class="agent-body" style="display:none">
+    <div class="rec-card">
+      <div class="rec-title">🔁 Casos Más Recurrentes</div>
+      <div id="recList"></div>
+      <button class="btn-analyze" onclick="analyzeRecurrent()" id="btnAnalyze">
+        ✦ Analizar con IA y generar plan de acción
+      </button>
+    </div>
+    <div id="recAnalysis" style="display:none">
+      <div class="sol-card">
+        <div class="sol-title">📊 Análisis IA de Casos Recurrentes</div>
+        <div class="sol-text" id="recAnalysisText"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Resolver Ticket -->
+  <div id="apanel2" class="agent-body" style="display:none">
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px">
+      Ingresa la clave o descripción del ticket para obtener una solución sugerida por IA:
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="ticketInput" placeholder="Ej: TK-648 o 'Error en mis cargas'"
+        style="flex:1;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:12px;font-family:inherit;outline:none"
+        onkeydown="if(event.key==='Enter')solveTicket()">
+      <button onclick="solveTicket()" id="btnSolve"
+        style="padding:8px 16px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
+        Resolver
+      </button>
+    </div>
+    <div id="ticketSolution" style="display:none">
+      <div class="sol-card">
+        <div class="sol-title">⚡ Solución Sugerida por IA</div>
+        <div class="sol-text" id="solutionText"></div>
+        <div class="sol-similar" id="similarSection" style="display:none">
+          <div class="sol-sim-title">Tickets similares resueltos:</div>
+          <div id="similarTags"></div>
+        </div>
+      </div>
+    </div>
+    <div id="solveLoading" style="display:none;text-align:center;padding:20px">
+      <div class="typing" style="margin:0 auto;width:fit-content"><span></span><span></span><span></span></div>
+      <div style="font-size:11px;color:#64748b;margin-top:8px">Consultando IA y tickets similares...</div>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

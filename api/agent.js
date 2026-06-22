@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════
+1// ═══════════════════════════════════════════════════════════
 //  api/agent.js  —  Agente IA para Mesa de Ayuda
 //  Resuelve casos recurrentes usando Claude API
 //  Integrado con historial de Jira

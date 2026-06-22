@@ -1,7 +1,10 @@
-1// ═══════════════════════════════════════════════════════════
-//  api/agent.js  —  Agente IA para Mesa de Ayuda
-//  Resuelve casos recurrentes usando Claude API
-//  Integrado con historial de Jira
+// ═══════════════════════════════════════════════════════════
+//  api/agent.js  —  Agente IA Mesa de Ayuda · Efletexia
+//  Soporta: Google Gemini (gratis) | Groq/Llama (gratis) | OpenAI
+//  Configura UNA de estas variables en Vercel:
+//    GEMINI_API_KEY   → Google Gemini (gratis)
+//    GROQ_API_KEY     → Groq / Llama 3 (gratis)
+//    OPENAI_API_KEY   → OpenAI GPT (pago)
 // ═══════════════════════════════════════════════════════════
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
@@ -9,212 +12,259 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-  const JIRA_EMAIL    = process.env.JIRA_EMAIL;
-  const JIRA_TOKEN    = process.env.JIRA_TOKEN;
-  const JIRA_URL      = process.env.JIRA_URL || 'https://efletexia.atlassian.net';
-  const JIRA_PROJ     = process.env.JIRA_PROJECT_KEY || 'TK';
+  // ── Detectar qué proveedor está configurado ──────────────
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  const GROQ_KEY   = process.env.GROQ_API_KEY;
+  const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-  if (!ANTHROPIC_KEY) {
-    return res.status(500).json({ error: 'Falta ANTHROPIC_API_KEY en variables de entorno' });
+  const PROVIDER = GEMINI_KEY ? 'gemini' : GROQ_KEY ? 'groq' : OPENAI_KEY ? 'openai' : null;
+
+  if (!PROVIDER) {
+    return res.status(500).json({
+      error: 'No hay API Key configurada. Agrega GEMINI_API_KEY, GROQ_API_KEY u OPENAI_API_KEY en Vercel.'
+    });
   }
+
+  // ── Jira (para buscar tickets similares) ─────────────────
+  const JIRA_EMAIL = process.env.JIRA_EMAIL;
+  const JIRA_TOKEN = process.env.JIRA_TOKEN;
+  const JIRA_URL   = process.env.JIRA_URL || 'https://efletexia.atlassian.net';
+  const JIRA_PROJ  = process.env.JIRA_PROJECT_KEY || 'TK';
 
   const body   = req.method === 'POST' ? (req.body || {}) : (req.query || {});
   const action = body.action;
 
-  // ── Auth Jira ──────────────────────────────────────────
-  const jiraAuth = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64');
-  const jiraH = {
-    'Authorization': `Basic ${jiraAuth}`,
-    'Accept':        'application/json',
-    'Content-Type':  'application/json'
-  };
+  // ══════════════════════════════════════════════════════════
+  //  LLAMADAS A LOS DISTINTOS PROVEEDORES DE IA
+  // ══════════════════════════════════════════════════════════
 
-  // ── Buscar tickets similares en Jira ───────────────────
+  async function callGemini(prompt, system) {
+    const fullPrompt = system ? `${system}\n\n${prompt}` : prompt;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        generationConfig: { maxOutputTokens: 1000, temperature: 0.7 }
+      })
+    });
+    if (!r.ok) throw new Error(`Gemini ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+
+  async function callGeminiChat(messages, system) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+    const contents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+    if (system) {
+      contents.unshift({ role: 'user', parts: [{ text: system }] });
+      contents.splice(1, 0, { role: 'model', parts: [{ text: 'Entendido. Estoy listo para ayudar.' }] });
+    }
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        generationConfig: { maxOutputTokens: 1000, temperature: 0.7 }
+      })
+    });
+    if (!r.ok) throw new Error(`Gemini ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+
+  async function callGroq(messages, system) {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${GROQ_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-70b-versatile',
+        messages: [
+          { role: 'system', content: system || 'Eres un asistente de mesa de ayuda.' },
+          ...messages
+        ],
+        max_tokens: 1000,
+        temperature: 0.7
+      })
+    });
+    if (!r.ok) throw new Error(`Groq ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    return data.choices?.[0]?.message?.content || '';
+  }
+
+  async function callOpenAI(messages, system) {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${OPENAI_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: system || 'Eres un asistente de mesa de ayuda.' },
+          ...messages
+        ],
+        max_tokens: 1000,
+        temperature: 0.7
+      })
+    });
+    if (!r.ok) throw new Error(`OpenAI ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    return data.choices?.[0]?.message?.content || '';
+  }
+
+  // Función unificada que llama al proveedor activo
+  async function callAI(messages, system) {
+    if (PROVIDER === 'gemini') return callGeminiChat(messages, system);
+    if (PROVIDER === 'groq')   return callGroq(messages, system);
+    if (PROVIDER === 'openai') return callOpenAI(messages, system);
+    throw new Error('Proveedor no soportado');
+  }
+
+  async function callAISimple(prompt, system) {
+    if (PROVIDER === 'gemini') return callGemini(prompt, system);
+    return callAI([{ role: 'user', content: prompt }], system);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  BÚSQUEDA EN JIRA
+  // ══════════════════════════════════════════════════════════
   async function findSimilarTickets(query) {
     if (!JIRA_EMAIL || !JIRA_TOKEN) return [];
     try {
-      const jql = `project="${JIRA_PROJ}" AND summary~"${query.replace(/"/g,'')}" AND status="Resuelto" ORDER BY created DESC`;
-      const payload = {
-        jql,
-        fields: ['summary','status','description','comment','resolution','customfield_10393'],
-        maxResults: 5
+      const jiraAuth = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64');
+      const H = {
+        'Authorization': `Basic ${jiraAuth}`,
+        'Accept':        'application/json',
+        'Content-Type':  'application/json'
       };
+      const jql = `project="${JIRA_PROJ}" AND summary~"${query.replace(/"/g,'').slice(0,40)}" AND status="Resuelto" ORDER BY created DESC`;
       const r = await fetch(`${JIRA_URL}/rest/api/3/search/jql`, {
-        method: 'POST', headers: jiraH, body: JSON.stringify(payload)
+        method: 'POST', headers: H,
+        body: JSON.stringify({ jql, fields: ['summary','resolution','comment'], maxResults: 5 })
       });
       if (!r.ok) return [];
       const data = await r.json();
       return (data.issues || []).map(iss => {
         const f = iss.fields || {};
-        // Extraer último comentario de resolución
         const comments = f.comment?.comments || [];
-        const lastComment = comments[comments.length - 1]?.body?.content?.[0]?.content?.[0]?.text || '';
-        return {
-          key:         iss.key,
-          summary:     f.summary || '',
-          resolution:  f.resolution?.name || 'Resuelto',
-          lastComment: lastComment.slice(0, 300)
-        };
+        const lastComment = comments[comments.length-1]?.body?.content?.[0]?.content?.[0]?.text || '';
+        return { key: iss.key, summary: f.summary||'', lastComment: lastComment.slice(0,200) };
       });
     } catch { return []; }
   }
 
-  // ── Llamar a Claude ────────────────────────────────────
-  async function callClaude(messages, system) {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system,
-        messages
-      })
-    });
-    if (!r.ok) throw new Error(`Claude API ${r.status}: ${await r.text()}`);
-    const data = await r.json();
-    return data.content.filter(b => b.type === 'text').map(b => b.text).join('');
-  }
+  // ══════════════════════════════════════════════════════════
+  //  SYSTEM PROMPT del agente
+  // ══════════════════════════════════════════════════════════
+  const SYSTEM = `Eres el Agente IA de Mesa de Ayuda de Efletexia. Eres un experto en soporte técnico.
 
-  // ══════════════════════════════════════════════════════
-  //  ACCIÓN: chat — conversación con el agente
-  // ══════════════════════════════════════════════════════
-  if (action === 'chat') {
-    const { messages, ticketContext } = body;
-    if (!messages?.length) return res.status(400).json({ error: 'Falta messages' });
-
-    const userMsg = messages[messages.length - 1]?.content || '';
-
-    // Buscar tickets similares resueltos en Jira
-    const similar = await findSimilarTickets(userMsg.slice(0, 50));
-    const similarContext = similar.length
-      ? `\nTickets similares resueltos en Jira:\n${similar.map(t =>
-          `- ${t.key}: "${t.summary}" → ${t.resolution}${t.lastComment ? ` | Solución: ${t.lastComment}` : ''}`
-        ).join('\n')}`
-      : '';
-
-    const system = `Eres el Agente IA de Mesa de Ayuda de Efletexia, especialista en soporte técnico de las aplicaciones de la empresa.
-
-Tu rol es ayudar a resolver tickets de soporte técnico de forma rápida y efectiva.
-
-APLICACIONES QUE SOPORTAS:
+APLICACIONES:
 - Aplicacion T1: Sistema principal de gestión de transporte y logística
-- Aplicacion T2: Sistema secundario de operaciones
-- Torre de Control: Monitoreo y control de operaciones en tiempo real
-- OPL: Sistema de gestión de pedidos y referencias
+- Aplicacion T2: Sistema secundario de operaciones  
+- Torre de Control: Monitoreo en tiempo real
+- OPL: Gestión de pedidos y referencias
 - Ruteador: Sistema de ruteo de transportistas
 
-ÁREAS USUARIAS:
-- Operaciones: Gestión de transportistas, cargas, rutas
-- Admin. & Finanzas: Facturación, prefacturas, pagos
-- TI: Infraestructura, accesos, configuraciones
-- Torre de Control: Monitoreo en tiempo real
-- Recursos Humanos: Gestión de personal
-- Marketing: Campañas y comunicaciones
-- Proyectos: Desarrollo e implementación
+ÁREAS: Operaciones, Admin. & Finanzas, TI, Torre de Control, Recursos Humanos, Marketing, Proyectos
 
-TIPOS DE CASOS FRECUENTES:
-1. Liberación de pedidos: Verificar estado en OPL, revisar aprobaciones pendientes
-2. Referencias a eliminar: Acceder a gestión de referencias, filtrar por número, aplicar eliminación
-3. Cambios de placa: Módulo de transportistas → editar vehículo → actualizar placa
-4. Diferencias de monto: Revisar prefactura vs factura, verificar tarifas configuradas
-5. Accesos bloqueados: Verificar usuario en directorio, restablecer contraseña o permisos
-6. Duplicación de registros: Identificar registro duplicado, consolidar o eliminar el erróneo
-7. Fallas de aplicación: Limpiar caché, verificar conexión, reiniciar sesión
+CASOS FRECUENTES Y SOLUCIONES:
+1. Liberación de pedidos → OPL → Aprobaciones pendientes → Aprobar o rechazar manualmente
+2. Referencias a eliminar → OPL → Gestión de referencias → Filtrar → Eliminar
+3. Cambio de placa → Módulo transportistas → Editar vehículo → Actualizar placa
+4. Diferencia de monto → Revisar prefactura vs tarifa configurada → Ajustar en administración
+5. Acceso bloqueado → Verificar usuario → Restablecer contraseña → Revisar permisos
+6. Duplicación de registros → Identificar duplicado → Consolidar o eliminar el erróneo
+7. Falla de aplicación → Limpiar caché → Cerrar y abrir sesión → Verificar conexión
 
-INSTRUCCIONES:
-- Responde en español, de forma clara y paso a paso
-- Si identificas el tipo de caso, da los pasos exactos de solución
-- Si necesitas más información, pregunta específicamente qué datos faltan
-- Menciona el ticket de Jira relacionado si encuentras uno similar resuelto
-- Sé conciso: máximo 300 palabras por respuesta
-- Si el caso requiere escalamiento, indícalo claramente
-${ticketContext ? `\nCONTEXTO DEL TICKET ACTUAL:\n${ticketContext}` : ''}
-${similarContext}`;
+REGLAS:
+- Responde siempre en español
+- Sé conciso y práctico (máximo 250 palabras)
+- Da pasos numerados cuando expliques una solución
+- Si el caso requiere escalamiento dilo claramente
+- Menciona el módulo exacto donde hacer los cambios`;
 
-    try {
-      const response = await callClaude(messages, system);
-      return res.status(200).json({ response, similar });
-    } catch (e) {
-      return res.status(500).json({ error: e.message });
-    }
+  // ══════════════════════════════════════════════════════════
+  //  ACCIÓN: info — qué proveedor está activo
+  // ══════════════════════════════════════════════════════════
+  if (action === 'info') {
+    return res.status(200).json({ provider: PROVIDER });
   }
 
-  // ══════════════════════════════════════════════════════
-  //  ACCIÓN: suggestSolution — solución rápida para un ticket
-  // ══════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════
+  //  ACCIÓN: chat
+  // ══════════════════════════════════════════════════════════
+  if (action === 'chat') {
+    const { messages } = body;
+    if (!messages?.length) return res.status(400).json({ error: 'Falta messages' });
+    const userMsg = messages[messages.length-1]?.content || '';
+    const similar = await findSimilarTickets(userMsg.slice(0,50));
+    const extraCtx = similar.length
+      ? `\n\nTickets similares resueltos en Jira:\n${similar.map(t=>`- ${t.key}: "${t.summary}"${t.lastComment?' → '+t.lastComment:''}`).join('\n')}`
+      : '';
+    try {
+      const lastMessages = messages.slice(-8);
+      lastMessages[lastMessages.length-1] = {
+        ...lastMessages[lastMessages.length-1],
+        content: lastMessages[lastMessages.length-1].content + extraCtx
+      };
+      const response = await callAI(lastMessages, SYSTEM);
+      return res.status(200).json({ response, similar, provider: PROVIDER });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  ACCIÓN: suggestSolution
+  // ══════════════════════════════════════════════════════════
   if (action === 'suggestSolution') {
     const { ticketKey, summary, area, requesttype, issuetype } = body;
     if (!summary) return res.status(400).json({ error: 'Falta summary' });
+    const similar = await findSimilarTickets(summary.slice(0,60));
+    const prompt = `Analiza este ticket y sugiere solución:
 
-    const similar = await findSimilarTickets(summary.slice(0, 60));
+TICKET: ${ticketKey||'N/A'} | ÁREA: ${area||'N/A'} | TIPO: ${issuetype||requesttype||'N/A'}
+DESCRIPCIÓN: ${summary}
+${similar.length?`\nTICKETS SIMILARES RESUELTOS:\n${similar.map(t=>`- ${t.key}: "${t.summary}"${t.lastComment?' → '+t.lastComment:''}`).join('\n')}`:''}
 
-    const prompt = `Analiza este ticket de soporte y sugiere la solución más probable:
-
-TICKET: ${ticketKey || 'N/A'}
-RESUMEN: ${summary}
-ÁREA USUARIA: ${area || 'No especificada'}
-TIPO DE SOLICITUD: ${requesttype || issuetype || 'No especificado'}
-TIPO: ${issuetype || 'No especificado'}
-
-${similar.length ? `TICKETS SIMILARES RESUELTOS:
-${similar.map(t => `- ${t.key}: "${t.summary}" → ${t.lastComment || t.resolution}`).join('\n')}` : ''}
-
-Proporciona:
-1. DIAGNÓSTICO: Qué tipo de problema es (1-2 oraciones)
-2. SOLUCIÓN PASO A PASO: Pasos concretos para resolver (máximo 5 pasos)
-3. TIEMPO ESTIMADO: Cuánto debería tomar resolverlo
-4. ESCALAMIENTO: Si debe escalar y a quién`;
-
+Responde con:
+1. DIAGNÓSTICO (1 oración)
+2. SOLUCIÓN PASO A PASO (máx 5 pasos)
+3. TIEMPO ESTIMADO
+4. ESCALAR A: (si aplica)`;
     try {
-      const response = await callClaude(
-        [{ role: 'user', content: prompt }],
-        'Eres un experto en soporte técnico de Efletexia. Responde en español de forma concisa y práctica.'
-      );
-      return res.status(200).json({ solution: response, similar });
-    } catch (e) {
-      return res.status(500).json({ error: e.message });
-    }
+      const solution = await callAISimple(prompt, SYSTEM);
+      return res.status(200).json({ solution, similar, provider: PROVIDER });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
-  // ══════════════════════════════════════════════════════
-  //  ACCIÓN: analyzeRecurrent — análisis de casos recurrentes
-  // ══════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════
+  //  ACCIÓN: analyzeRecurrent
+  // ══════════════════════════════════════════════════════════
   if (action === 'analyzeRecurrent') {
     const { recurrentCases } = body;
     if (!recurrentCases?.length) return res.status(400).json({ error: 'Falta recurrentCases' });
+    const prompt = `Analiza estos casos recurrentes de Mesa de Ayuda de Efletexia:
 
-    const casesText = recurrentCases
-      .slice(0, 10)
-      .map(([name, count]) => `- "${name}": ${count} ocurrencias`)
-      .join('\n');
-
-    const prompt = `Analiza estos casos recurrentes de la Mesa de Ayuda de Efletexia y proporciona un plan de acción:
-
-CASOS MÁS RECURRENTES:
-${casesText}
+${recurrentCases.slice(0,10).map(([n,c])=>`- "${n}": ${c} veces`).join('\n')}
 
 Proporciona:
-1. PATRÓN IDENTIFICADO: Qué causa raíz tienen en común
-2. TOP 3 PRIORIDADES: Los casos que más impacto tienen y cómo resolverlos definitivamente
-3. SOLUCIONES PREVENTIVAS: Qué cambios en procesos o sistemas evitarían estos casos
-4. AUTOMATIZACIONES SUGERIDAS: Qué se podría automatizar para reducir tickets
-5. KPI ESPERADO: Estimación de reducción de tickets si se implementan las mejoras`;
-
+1. CAUSA RAÍZ COMÚN
+2. TOP 3 ACCIONES INMEDIATAS para reducir tickets
+3. SOLUCIONES PREVENTIVAS (cambios en procesos/sistemas)
+4. QUÉ AUTOMATIZAR para eliminar estos tickets
+5. REDUCCIÓN ESTIMADA si se implementan las mejoras (%)`;
     try {
-      const response = await callClaude(
-        [{ role: 'user', content: prompt }],
-        'Eres un consultor experto en optimización de mesas de ayuda. Responde en español con análisis profundo y recomendaciones prácticas.'
-      );
-      return res.status(200).json({ analysis: response });
-    } catch (e) {
-      return res.status(500).json({ error: e.message });
-    }
+      const analysis = await callAISimple(prompt, SYSTEM);
+      return res.status(200).json({ analysis, provider: PROVIDER });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   return res.status(400).json({ error: `Acción desconocida: "${action}"` });

@@ -623,11 +623,36 @@ window.sendChat = async function() {
   }
 };
 
+function formatBotMsg(text) {
+  // Convertir **texto** a negrita
+  let t = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Convertir líneas que empiezan con número. en pasos
+  t = t.replace(/^(\d+)\.\s+/gm, (m, n) => 
+    `<div class="msg-step"><span class="step-num">${n}</span><span class="step-txt">`
+  );
+  // Cerrar divs de pasos
+  const stepCount = (t.match(/msg-step/g)||[]).length;
+  for(let i=0;i<stepCount;i++) t = t.replace('</span><span class="step-txt">', '</span><span class="step-txt">');
+  // Separar líneas en párrafos
+  t = t.split('\n').map(line => {
+    line = line.trim();
+    if (!line) return '';
+    if (line.includes('msg-step')) return line + '</span></div>';
+    if (line.startsWith('-')) return `<div class="msg-bullet">• ${line.slice(1).trim()}</div>`;
+    if (line.match(/^[A-ZÁÉÍÓÚÑ\s]{4,}:$/)) return `<div class="msg-section">${line}</div>`;
+    if (line.includes(':') && line.split(':')[0].length < 30 && line.split(':')[0] === line.split(':')[0].toUpperCase())
+      return `<div class="msg-label"><span class="lbl-key">${line.split(':')[0]}:</span><span class="lbl-val">${line.split(':').slice(1).join(':')}</span></div>`;
+    return `<div class="msg-line">${line}</div>`;
+  }).join('');
+  return t;
+}
+
 function appendMsg(type, text, isHtml=false) {
   const msgs = document.getElementById('chatMsgs');
   const div  = document.createElement('div');
   div.className = `msg ${type}`;
   if (isHtml) div.innerHTML = text;
+  else if (type === 'bot') div.innerHTML = formatBotMsg(text);
   else div.textContent = text;
   msgs.appendChild(div);
   scrollChat();

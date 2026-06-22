@@ -488,3 +488,211 @@ window.setM=function(i){cur=i;tabClass();if(speaking)stopAudio();if(Object.keys(
   if(dt) dt.value=mkey(rng[2].year,rng[2].month);
   loadFromJira();
 })();
+
+/* ══════════════════════════════════════════════════════════
+   AGENTE IA — Mesa de Ayuda
+══════════════════════════════════════════════════════════ */
+const AGENT_API = '/api/agent';
+let agentOpen   = false;
+let agentTab    = 0;
+let chatHistory = [];
+let agentBusy   = false;
+
+// ── Toggle panel ──────────────────────────────────────────
+window.toggleAgent = function() {
+  agentOpen = !agentOpen;
+  document.getElementById('agentPanel').classList.toggle('open', agentOpen);
+  document.getElementById('agentNotif').style.display = 'none';
+  if (agentOpen && agentTab === 1) loadRecurrentList();
+};
+
+// ── Tabs ──────────────────────────────────────────────────
+window.setAgentTab = function(i) {
+  agentTab = i;
+  for (let j=0; j<3; j++) {
+    document.getElementById(`atab${j}`).classList.toggle('on', j===i);
+    document.getElementById(`apanel${j}`).style.display = j===i ? 'flex' : 'none';
+  }
+  document.getElementById('chatInputWrap').style.display = i===0 ? 'flex' : 'none';
+  if (i===1) loadRecurrentList();
+};
+
+// ── Cargar casos recurrentes ──────────────────────────────
+function loadRecurrentList() {
+  const d   = getD();
+  const rec = (Array.isArray(d.rec) ? d.rec : Object.entries(d.rec)).slice(0,10);
+  const max = rec[0]?.[1] || 1;
+  const el  = document.getElementById('recList');
+  if (!el || !rec.length) { if(el) el.innerHTML='<div style="font-size:11px;color:#64748b">No hay casos recurrentes en el período actual.</div>'; return; }
+  el.innerHTML = rec.map(([name, count]) => `
+    <div class="rec-item" onclick="quickSolveRec('${name.replace(/'/g,"\\'")}')">
+      <div class="rec-bar-wrap">
+        <div class="rec-label" title="${name}">${name.length>38?name.slice(0,36)+'…':name}</div>
+        <div class="rec-bar" style="width:${Math.round((count/max)*100)}%"></div>
+      </div>
+      <div class="rec-count">${count}×</div>
+    </div>`).join('');
+}
+
+window.quickSolveRec = function(name) {
+  setAgentTab(0);
+  setTimeout(() => {
+    document.getElementById('chatInput').value = `¿Cómo resolver este caso recurrente?: ${name}`;
+    sendChat();
+  }, 100);
+};
+
+// ── Analizar recurrentes con IA ───────────────────────────
+window.analyzeRecurrent = async function() {
+  const d   = getD();
+  const rec = (Array.isArray(d.rec) ? d.rec : Object.entries(d.rec)).slice(0,10);
+  if (!rec.length) return;
+
+  const btn = document.getElementById('btnAnalyze');
+  btn.disabled = true; btn.textContent = '⏳ Analizando con IA...';
+
+  try {
+    const r = await fetch(AGENT_API, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'analyzeRecurrent', recurrentCases: rec })
+    });
+    const data = await r.json();
+    if (data.analysis) {
+      document.getElementById('recAnalysis').style.display = 'block';
+      document.getElementById('recAnalysisText').textContent = data.analysis;
+    }
+  } catch (e) {
+    alert('Error al analizar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✦ Analizar con IA y generar plan de acción';
+  }
+};
+
+// ── Chat ──────────────────────────────────────────────────
+window.quickMsg = function(msg) {
+  document.getElementById('chatInput').value = msg;
+  sendChat();
+};
+
+window.sendChat = async function() {
+  const input = document.getElementById('chatInput');
+  const msg   = input.value.trim();
+  if (!msg || agentBusy) return;
+
+  input.value = ''; input.style.height = 'auto';
+  appendMsg('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+  document.getElementById('quickBtns').style.display = 'none';
+
+  agentBusy = true;
+  document.getElementById('chatSendBtn').disabled = true;
+  document.getElementById('typingIndicator').style.display = 'block';
+  scrollChat();
+
+  try {
+    const r = await fetch(AGENT_API, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action: 'chat',
+        messages: chatHistory.slice(-10), // últimos 10 mensajes
+        ticketContext: null
+      })
+    });
+    const data = await r.json();
+    if (data.response) {
+      chatHistory.push({ role: 'assistant', content: data.response });
+      appendMsg('bot', data.response);
+      if (data.similar?.length) {
+        const tags = data.similar.map(t =>
+          `<a href="https://efletexia.atlassian.net/browse/${t.key}" target="_blank" class="sim-tag">${t.key}</a>`
+        ).join('');
+        appendMsg('bot', `📎 Tickets similares resueltos: ${tags}`, true);
+      }
+    } else {
+      appendMsg('bot', data.error || 'No pude obtener respuesta. Intenta de nuevo.');
+    }
+  } catch (e) {
+    appendMsg('bot', '⚠️ Error de conexión. Verifica que ANTHROPIC_API_KEY esté configurada en Vercel.');
+  } finally {
+    agentBusy = false;
+    document.getElementById('chatSendBtn').disabled = false;
+    document.getElementById('typingIndicator').style.display = 'none';
+    scrollChat();
+  }
+};
+
+function appendMsg(type, text, isHtml=false) {
+  const msgs = document.getElementById('chatMsgs');
+  const div  = document.createElement('div');
+  div.className = `msg ${type}`;
+  if (isHtml) div.innerHTML = text;
+  else div.textContent = text;
+  msgs.appendChild(div);
+  scrollChat();
+}
+
+function scrollChat() {
+  const msgs = document.getElementById('chatMsgs');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Resolver ticket específico ────────────────────────────
+window.solveTicket = async function() {
+  const input = document.getElementById('ticketInput').value.trim();
+  if (!input) return;
+
+  document.getElementById('ticketSolution').style.display = 'none';
+  document.getElementById('solveLoading').style.display = 'block';
+  document.getElementById('btnSolve').disabled = true;
+
+  // Buscar en PENDING si es una clave de ticket
+  let ticketData = { summary: input };
+  const found = PENDING.find(t => t.key.toLowerCase() === input.toLowerCase());
+  if (found) {
+    ticketData = {
+      ticketKey:   found.key,
+      summary:     found.res,
+      area:        found.area,
+      requesttype: found.area,
+      issuetype:   found.tipo === 'inc' ? 'Incidente' : 'Solicitud de servicio'
+    };
+  }
+
+  try {
+    const r = await fetch(AGENT_API, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'suggestSolution', ...ticketData })
+    });
+    const data = await r.json();
+
+    document.getElementById('solveLoading').style.display = 'none';
+    document.getElementById('ticketSolution').style.display = 'block';
+
+    if (data.solution) {
+      document.getElementById('solutionText').textContent = data.solution;
+      if (data.similar?.length) {
+        document.getElementById('similarSection').style.display = 'block';
+        document.getElementById('similarTags').innerHTML = data.similar.map(t =>
+          `<a href="https://efletexia.atlassian.net/browse/${t.key}" target="_blank" class="sim-tag">${t.key}: ${t.summary.slice(0,40)}…</a>`
+        ).join('');
+      }
+    } else {
+      document.getElementById('solutionText').textContent = data.error || 'No se pudo generar solución.';
+    }
+  } catch (e) {
+    document.getElementById('solveLoading').style.display = 'none';
+    document.getElementById('solutionText').textContent = '⚠️ Error: ' + e.message;
+    document.getElementById('ticketSolution').style.display = 'block';
+  } finally {
+    document.getElementById('btnSolve').disabled = false;
+  }
+};
+
+// Mostrar notificación del agente al cargar
+setTimeout(() => {
+  const notif = document.getElementById('agentNotif');
+  if (notif) notif.style.display = 'flex';
+}, 3000);

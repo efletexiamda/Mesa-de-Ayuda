@@ -47,6 +47,9 @@ body{font-family:'Outfit',sans-serif;background:#fff;color:var(--tx);min-height:
 .hdr::after{content:'';position:absolute;inset:0;
   background:radial-gradient(ellipse at 80% 50%,rgba(59,130,246,.12) 0%,transparent 70%)}
 .hdr-l{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+.logo-wrap{display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.1);border-radius:12px;padding:6px 10px;
+  min-width:46px;height:46px;flex-shrink:0}
 .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);
   display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;
   color:#fff;letter-spacing:-1px;box-shadow:0 4px 12px rgba(59,130,246,.4)}
@@ -187,6 +190,24 @@ tr:hover td{background:#fafbfc}
   border:1px solid rgba(139,92,246,.3);border-radius:6px;padding:2px 8px;
   font-size:9px;font-weight:800;color:#8b5cf6}
 
+
+/* ── CHAT FORMATEADO ── */
+.msg-step{display:flex;align-items:flex-start;gap:8px;margin:5px 0;padding:7px 10px;
+  background:rgba(124,58,237,.07);border-radius:8px;border-left:3px solid #7c3aed}
+.step-num{min-width:22px;height:22px;border-radius:50%;background:#7c3aed;color:#fff;
+  font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-txt{font-size:12px;line-height:1.6;flex:1;color:#0f172a}
+.msg-bullet{padding:2px 0 2px 6px;font-size:12px;color:#334155;line-height:1.5}
+.msg-section{font-size:10px;font-weight:800;color:#7c3aed;letter-spacing:1px;
+  text-transform:uppercase;margin:10px 0 5px;border-bottom:1.5px solid #e9d5ff;padding-bottom:4px}
+.msg-label{display:flex;gap:6px;padding:3px 0;font-size:11.5px;line-height:1.4}
+.lbl-key{font-weight:800;color:#475569;flex-shrink:0;min-width:80px}
+.lbl-val{color:#0f172a}
+.msg-line{font-size:12px;line-height:1.6;padding:1px 0;color:#1e293b}
+.msg.bot strong{color:#7c3aed;font-weight:800}
+.msg.bot{background:#f8fafc;border:1px solid #e2e8f0;padding:12px 15px;line-height:1.6}
+.agent-panel{width:480px}
+
 /* FOOTER */
 .footer{text-align:center;font-size:11px;color:var(--lt);padding-bottom:16px}
 </style>
@@ -211,7 +232,12 @@ tr:hover td{background:#fafbfc}
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-l">
-    <div class="logo">EF</div>
+    <div class="logo-wrap">
+      <img src="logo.png"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+           alt="Efletexia" style="height:46px;width:auto;object-fit:contain">
+      <div class="logo" style="display:none">EF</div>
+    </div>
     <div>
       <div class="hdr-title">Mesa de Ayuda – Efletexia</div>
       <div class="hdr-sub">Dashboard Gerencial · Jira Service Management · Proyecto Mesa de Ayuda · efletexia.atlassian.net</div>

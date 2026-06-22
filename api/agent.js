@@ -1,10 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  api/agent.js  —  Agente IA Mesa de Ayuda · Efletexia
-//  Soporta: Google Gemini (gratis) | Groq/Llama (gratis) | OpenAI
-//  Configura UNA de estas variables en Vercel:
-//    GEMINI_API_KEY   → Google Gemini (gratis)
-//    GROQ_API_KEY     → Groq / Llama 3 (gratis)
-//    OPENAI_API_KEY   → OpenAI GPT (pago)
+//  Consulta Jira en tiempo real + IA para respuestas
+//  Soporta: Groq (gratis) | Gemini (gratis) | OpenAI
 // ═══════════════════════════════════════════════════════════
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
@@ -12,259 +9,401 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // ── Detectar qué proveedor está configurado ──────────────
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
   const GROQ_KEY   = process.env.GROQ_API_KEY;
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
   const OPENAI_KEY = process.env.OPENAI_API_KEY;
+  const PROVIDER   = GROQ_KEY ? 'groq' : GEMINI_KEY ? 'gemini' : OPENAI_KEY ? 'openai' : null;
 
-  const PROVIDER = GEMINI_KEY ? 'gemini' : GROQ_KEY ? 'groq' : OPENAI_KEY ? 'openai' : null;
-
-  if (!PROVIDER) {
-    return res.status(500).json({
-      error: 'No hay API Key configurada. Agrega GEMINI_API_KEY, GROQ_API_KEY u OPENAI_API_KEY en Vercel.'
-    });
-  }
-
-  // ── Jira (para buscar tickets similares) ─────────────────
   const JIRA_EMAIL = process.env.JIRA_EMAIL;
   const JIRA_TOKEN = process.env.JIRA_TOKEN;
   const JIRA_URL   = process.env.JIRA_URL || 'https://efletexia.atlassian.net';
   const JIRA_PROJ  = process.env.JIRA_PROJECT_KEY || 'TK';
 
+  if (!PROVIDER) {
+    return res.status(500).json({ error: 'No hay API Key configurada. Agrega GROQ_API_KEY en Vercel.' });
+  }
+
   const body   = req.method === 'POST' ? (req.body || {}) : (req.query || {});
   const action = body.action;
 
-  // ══════════════════════════════════════════════════════════
-  //  LLAMADAS A LOS DISTINTOS PROVEEDORES DE IA
-  // ══════════════════════════════════════════════════════════
+  // ── Auth Jira ──────────────────────────────────────────
+  const jiraAuth = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64');
+  const JH = {
+    'Authorization': `Basic ${jiraAuth}`,
+    'Accept':        'application/json',
+    'Content-Type':  'application/json'
+  };
 
-  async function callGemini(prompt, system) {
-    const fullPrompt = system ? `${system}\n\n${prompt}` : prompt;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        generationConfig: { maxOutputTokens: 1000, temperature: 0.7 }
-      })
-    });
-    if (!r.ok) throw new Error(`Gemini ${r.status}: ${await r.text()}`);
-    const data = await r.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  }
-
-  async function callGeminiChat(messages, system) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-    const contents = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
-    if (system) {
-      contents.unshift({ role: 'user', parts: [{ text: system }] });
-      contents.splice(1, 0, { role: 'model', parts: [{ text: 'Entendido. Estoy listo para ayudar.' }] });
-    }
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        generationConfig: { maxOutputTokens: 1000, temperature: 0.7 }
-      })
-    });
-    if (!r.ok) throw new Error(`Gemini ${r.status}: ${await r.text()}`);
-    const data = await r.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  }
-
-  async function callGroq(messages, system) {
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${GROQ_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: system || 'Eres un asistente de mesa de ayuda.' },
-          ...messages
-        ],
-        max_tokens: 1000,
-        temperature: 0.7
-      })
-    });
-    if (!r.ok) throw new Error(`Groq ${r.status}: ${await r.text()}`);
-    const data = await r.json();
-    return data.choices?.[0]?.message?.content || '';
-  }
-
-  async function callOpenAI(messages, system) {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${OPENAI_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: system || 'Eres un asistente de mesa de ayuda.' },
-          ...messages
-        ],
-        max_tokens: 1000,
-        temperature: 0.7
-      })
-    });
-    if (!r.ok) throw new Error(`OpenAI ${r.status}: ${await r.text()}`);
-    const data = await r.json();
-    return data.choices?.[0]?.message?.content || '';
-  }
-
-  // Función unificada que llama al proveedor activo
-  async function callAI(messages, system) {
-    if (PROVIDER === 'gemini') return callGeminiChat(messages, system);
-    if (PROVIDER === 'groq')   return callGroq(messages, system);
-    if (PROVIDER === 'openai') return callOpenAI(messages, system);
-    throw new Error('Proveedor no soportado');
-  }
-
-  async function callAISimple(prompt, system) {
-    if (PROVIDER === 'gemini') return callGemini(prompt, system);
-    return callAI([{ role: 'user', content: prompt }], system);
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  BÚSQUEDA EN JIRA
-  // ══════════════════════════════════════════════════════════
-  async function findSimilarTickets(query) {
-    if (!JIRA_EMAIL || !JIRA_TOKEN) return [];
+  // ══════════════════════════════════════════════════════
+  //  JIRA: obtener ticket específico con TODOS sus datos
+  // ══════════════════════════════════════════════════════
+  async function getTicket(key) {
     try {
-      const jiraAuth = Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64');
-      const H = {
-        'Authorization': `Basic ${jiraAuth}`,
-        'Accept':        'application/json',
-        'Content-Type':  'application/json'
+      const r = await fetch(`${JIRA_URL}/rest/api/3/issue/${key}?expand=renderedFields`, { headers: JH });
+      if (!r.ok) return null;
+      const d = await r.json();
+      const f = d.fields || {};
+      // Extraer comentarios
+      const comments = (f.comment?.comments || []).map(c => ({
+        author: c.author?.displayName || 'Desconocido',
+        date:   (c.created || '').slice(0,10),
+        text:   extractText(c.body)
+      }));
+      return {
+        key:         d.key,
+        summary:     f.summary || '',
+        status:      f.status?.name || '',
+        issuetype:   f.issuetype?.name || '',
+        assignee:    f.assignee?.displayName || 'Sin asignar',
+        reporter:    f.reporter?.displayName || '',
+        created:     (f.created || '').slice(0,10),
+        priority:    f.priority?.name || '',
+        area:        f.customfield_10393?.value || '',
+        apptype:     f.customfield_10360?.value || '',
+        requesttype: f.customfield_10010?.requestType?.name || '',
+        description: extractText(f.description),
+        comments,
+        resolution:  f.resolution?.name || '',
+        resolutionDate: (f.resolutiondate || '').slice(0,10)
       };
-      const jql = `project="${JIRA_PROJ}" AND summary~"${query.replace(/"/g,'').slice(0,40)}" AND status="Resuelto" ORDER BY created DESC`;
+    } catch { return null; }
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  JIRA: buscar tickets por JQL
+  // ══════════════════════════════════════════════════════
+  async function searchJira(jql, maxResults = 10) {
+    try {
+      const fields = ['summary','status','issuetype','assignee','reporter','created',
+                      'priority','customfield_10393','customfield_10360','customfield_10010',
+                      'description','comment','resolution'];
       const r = await fetch(`${JIRA_URL}/rest/api/3/search/jql`, {
-        method: 'POST', headers: H,
-        body: JSON.stringify({ jql, fields: ['summary','resolution','comment'], maxResults: 5 })
+        method: 'POST', headers: JH,
+        body: JSON.stringify({ jql, fields, maxResults })
       });
       if (!r.ok) return [];
       const data = await r.json();
       return (data.issues || []).map(iss => {
         const f = iss.fields || {};
-        const comments = f.comment?.comments || [];
-        const lastComment = comments[comments.length-1]?.body?.content?.[0]?.content?.[0]?.text || '';
-        return { key: iss.key, summary: f.summary||'', lastComment: lastComment.slice(0,200) };
+        const comments = (f.comment?.comments || []).map(c => ({
+          author: c.author?.displayName || '',
+          text:   extractText(c.body)
+        }));
+        return {
+          key:         iss.key,
+          summary:     f.summary || '',
+          status:      f.status?.name || '',
+          issuetype:   f.issuetype?.name || '',
+          assignee:    f.assignee?.displayName || 'Sin asignar',
+          reporter:    f.reporter?.displayName || '',
+          created:     (f.created || '').slice(0,10),
+          area:        f.customfield_10393?.value || '',
+          apptype:     f.customfield_10360?.value || '',
+          requesttype: f.customfield_10010?.requestType?.name || '',
+          description: extractText(f.description),
+          comments,
+          resolution:  f.resolution?.name || ''
+        };
       });
     } catch { return []; }
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  SYSTEM PROMPT del agente
-  // ══════════════════════════════════════════════════════════
-  const SYSTEM = `Eres el Agente IA de Mesa de Ayuda de Efletexia. Eres un experto en soporte técnico.
+  // Extraer texto plano del formato ADF de Jira
+  function extractText(node) {
+    if (!node) return '';
+    if (typeof node === 'string') return node;
+    if (node.type === 'text') return node.text || '';
+    if (node.content) return node.content.map(extractText).join(' ');
+    return '';
+  }
 
-APLICACIONES:
-- Aplicacion T1: Sistema principal de gestión de transporte y logística
-- Aplicacion T2: Sistema secundario de operaciones  
-- Torre de Control: Monitoreo en tiempo real
-- OPL: Gestión de pedidos y referencias
-- Ruteador: Sistema de ruteo de transportistas
+  // ══════════════════════════════════════════════════════
+  //  DETECTAR intención del usuario
+  // ══════════════════════════════════════════════════════
+  function detectIntent(msg) {
+    const m = msg.toUpperCase();
+    // Buscar clave de ticket TK-XXX
+    const ticketMatch = msg.match(/TK-\d+/i);
+    if (ticketMatch) return { type: 'ticket', key: ticketMatch[0].toUpperCase() };
+    // Buscar número solo
+    const numMatch = msg.match(/\b(\d{3,4})\b/);
+    if (numMatch) return { type: 'ticket', key: `TK-${numMatch[1]}` };
+    // Estado de tickets pendientes
+    if (m.includes('PENDIENTE') || m.includes('ABIERTO') || m.includes('ACTIVO')) return { type: 'pending' };
+    // Tickets escalados
+    if (m.includes('ESCALAD')) return { type: 'escalated' };
+    // Tickets de una persona
+    const personMatch = msg.match(/tickets?\s+de\s+([A-Za-záéíóúñÁÉÍÓÚÑ\s]+)/i);
+    if (personMatch) return { type: 'byPerson', name: personMatch[1].trim() };
+    // Tickets recurrentes
+    if (m.includes('RECURRENTE') || m.includes('REPETID')) return { type: 'recurrent' };
+    // Búsqueda general
+    if (m.includes('BUSCA') || m.includes('ENCONTRA') || m.includes('MOSTRA')) return { type: 'search', query: msg };
+    return { type: 'general' };
+  }
 
+  // ══════════════════════════════════════════════════════
+  //  CONSTRUIR CONTEXTO DE JIRA para el mensaje
+  // ══════════════════════════════════════════════════════
+  async function buildJiraContext(userMsg) {
+    const intent = detectIntent(userMsg);
+    let context = '';
+
+    if (intent.type === 'ticket') {
+      const ticket = await getTicket(intent.key);
+      if (ticket) {
+        context = `\n\n=== DATOS REALES DEL TICKET ${ticket.key} ===
+Resumen: ${ticket.summary}
+Estado: ${ticket.status}
+Tipo: ${ticket.issuetype}
+Área Usuario: ${ticket.area || 'No especificada'}
+Tipo de Aplicación: ${ticket.apptype || 'No especificada'}
+Tipo de Solicitud: ${ticket.requesttype || 'No especificada'}
+Asignado a: ${ticket.assignee}
+Informador: ${ticket.reporter}
+Creado: ${ticket.created}
+Prioridad: ${ticket.priority}
+${ticket.description ? `Descripción: ${ticket.description.slice(0,400)}` : ''}
+${ticket.resolution ? `Resolución: ${ticket.resolution} (${ticket.resolutionDate})` : ''}
+${ticket.comments.length ? `\nComentarios (${ticket.comments.length}):\n${ticket.comments.slice(-3).map(c=>`- ${c.author} (${c.date}): ${c.text.slice(0,150)}`).join('\n')}` : 'Sin comentarios'}
+=== FIN DATOS TICKET ===`;
+      } else {
+        context = `\n\nNota: El ticket ${intent.key} no fue encontrado en Jira o no existe.`;
+      }
+    }
+
+    if (intent.type === 'pending') {
+      const tickets = await searchJira(
+        `project="${JIRA_PROJ}" AND status in ("Esperando por ayuda","Esperando por el cliente","Escalado") ORDER BY created ASC`,
+        15
+      );
+      if (tickets.length) {
+        context = `\n\n=== TICKETS PENDIENTES ACTUALES (${tickets.length}) ===\n` +
+          tickets.map(t => `- ${t.key} | ${t.status} | ${t.area||'Sin área'} | ${t.reporter} → ${t.summary.slice(0,60)}`).join('\n') +
+          '\n=== FIN ===';
+      }
+    }
+
+    if (intent.type === 'escalated') {
+      const tickets = await searchJira(
+        `project="${JIRA_PROJ}" AND status="Escalado" ORDER BY created ASC`, 10
+      );
+      if (tickets.length) {
+        context = `\n\n=== TICKETS ESCALADOS (${tickets.length}) ===\n` +
+          tickets.map(t => `- ${t.key} | Asignado: ${t.assignee} | ${t.reporter} → ${t.summary.slice(0,60)}`).join('\n') +
+          '\n=== FIN ===';
+      }
+    }
+
+    if (intent.type === 'byPerson') {
+      const tickets = await searchJira(
+        `project="${JIRA_PROJ}" AND (assignee="${intent.name}" OR reporter~"${intent.name}") ORDER BY created DESC`,
+        10
+      );
+      if (tickets.length) {
+        context = `\n\n=== TICKETS DE ${intent.name.toUpperCase()} ===\n` +
+          tickets.map(t => `- ${t.key} | ${t.status} | ${t.summary.slice(0,60)}`).join('\n') +
+          '\n=== FIN ===';
+      }
+    }
+
+    if (intent.type === 'search') {
+      const tickets = await searchJira(
+        `project="${JIRA_PROJ}" AND summary~"${intent.query.replace(/"/g,'').slice(0,40)}" ORDER BY created DESC`,
+        8
+      );
+      if (tickets.length) {
+        context = `\n\n=== TICKETS ENCONTRADOS ===\n` +
+          tickets.map(t => `- ${t.key} | ${t.status} | ${t.summary.slice(0,70)}`).join('\n') +
+          '\n=== FIN ===';
+      }
+    }
+
+    return context;
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  LLAMADAS A IA
+  // ══════════════════════════════════════════════════════
+  async function callGroq(messages, system) {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${GROQ_KEY}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role:'system', content: system }, ...messages],
+        max_tokens: 1000, temperature: 0.5
+      })
+    });
+    if (!r.ok) throw new Error(`Groq ${r.status}: ${await r.text()}`);
+    const d = await r.json();
+    return d.choices?.[0]?.message?.content || '';
+  }
+
+  async function callGemini(messages, system) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+    const contents = [
+      { role:'user',  parts:[{text: system}] },
+      { role:'model', parts:[{text:'Entendido, estoy listo para ayudar.'}] },
+      ...messages.map(m=>({ role: m.role==='assistant'?'model':'user', parts:[{text:m.content}] }))
+    ];
+    const r = await fetch(url, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents, generationConfig:{ maxOutputTokens:1000, temperature:0.5 } })
+    });
+    if (!r.ok) throw new Error(`Gemini ${r.status}: ${await r.text()}`);
+    const d = await r.json();
+    return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+
+  async function callOpenAI(messages, system) {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${OPENAI_KEY}`},
+      body: JSON.stringify({
+        model:'gpt-4o-mini',
+        messages:[{role:'system',content:system},...messages],
+        max_tokens:1000, temperature:0.5
+      })
+    });
+    if (!r.ok) throw new Error(`OpenAI ${r.status}: ${await r.text()}`);
+    const d = await r.json();
+    return d.choices?.[0]?.message?.content || '';
+  }
+
+  async function callAI(messages, system) {
+    if (PROVIDER==='groq')   return callGroq(messages, system);
+    if (PROVIDER==='gemini') return callGemini(messages, system);
+    if (PROVIDER==='openai') return callOpenAI(messages, system);
+    throw new Error('Sin proveedor');
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  SYSTEM PROMPT
+  // ══════════════════════════════════════════════════════
+  const SYSTEM = `Eres el Agente IA de Mesa de Ayuda de Efletexia con ACCESO DIRECTO a Jira en tiempo real.
+
+IMPORTANTE:
+- Cuando te pregunten por un ticket (ej: TK-641), ya tienes sus datos reales en el contexto
+- Responde SIEMPRE en base a los datos reales de Jira que se incluyen en el mensaje
+- NUNCA digas que no tienes acceso a la información — sí la tienes
+- Responde paso a paso, un paso a la vez, de forma clara y numerada
+- Máximo 300 palabras por respuesta
+- Usa los datos del ticket para dar contexto específico
+
+APLICACIONES: Aplicacion T1 (logística), Aplicacion T2 (operaciones), Torre de Control, OPL (pedidos), Ruteador
 ÁREAS: Operaciones, Admin. & Finanzas, TI, Torre de Control, Recursos Humanos, Marketing, Proyectos
+ESTADOS: Esperando por ayuda, Esperando por el cliente, Escalado, Resuelto, Cancelado
 
-CASOS FRECUENTES Y SOLUCIONES:
-1. Liberación de pedidos → OPL → Aprobaciones pendientes → Aprobar o rechazar manualmente
-2. Referencias a eliminar → OPL → Gestión de referencias → Filtrar → Eliminar
-3. Cambio de placa → Módulo transportistas → Editar vehículo → Actualizar placa
-4. Diferencia de monto → Revisar prefactura vs tarifa configurada → Ajustar en administración
-5. Acceso bloqueado → Verificar usuario → Restablecer contraseña → Revisar permisos
-6. Duplicación de registros → Identificar duplicado → Consolidar o eliminar el erróneo
-7. Falla de aplicación → Limpiar caché → Cerrar y abrir sesión → Verificar conexión
+SOLUCIONES COMUNES:
+1. Liberar pedido → OPL → Aprobaciones → Aprobar/Rechazar
+2. Eliminar referencia → OPL → Gestión de referencias → Filtrar → Eliminar  
+3. Cambio de placa → Módulo transportistas → Editar vehículo → Actualizar
+4. Diferencia de monto → Revisar prefactura vs tarifa → Ajustar en administración
+5. Acceso bloqueado → Directorio → Restablecer contraseña → Verificar permisos
+6. App lenta/caída → Limpiar caché → Cerrar sesión → Reiniciar → Verificar conexión`;
 
-REGLAS:
-- Responde siempre en español
-- Sé conciso y práctico (máximo 250 palabras)
-- Da pasos numerados cuando expliques una solución
-- Si el caso requiere escalamiento dilo claramente
-- Menciona el módulo exacto donde hacer los cambios`;
-
-  // ══════════════════════════════════════════════════════════
-  //  ACCIÓN: info — qué proveedor está activo
-  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════
+  //  ACCIÓN: info
+  // ══════════════════════════════════════════════════════
   if (action === 'info') {
     return res.status(200).json({ provider: PROVIDER });
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  ACCIÓN: chat
-  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════
+  //  ACCIÓN: chat — con acceso real a Jira
+  // ══════════════════════════════════════════════════════
   if (action === 'chat') {
     const { messages } = body;
     if (!messages?.length) return res.status(400).json({ error: 'Falta messages' });
-    const userMsg = messages[messages.length-1]?.content || '';
-    const similar = await findSimilarTickets(userMsg.slice(0,50));
-    const extraCtx = similar.length
-      ? `\n\nTickets similares resueltos en Jira:\n${similar.map(t=>`- ${t.key}: "${t.summary}"${t.lastComment?' → '+t.lastComment:''}`).join('\n')}`
-      : '';
-    try {
-      const lastMessages = messages.slice(-8);
-      lastMessages[lastMessages.length-1] = {
-        ...lastMessages[lastMessages.length-1],
-        content: lastMessages[lastMessages.length-1].content + extraCtx
+
+    const userMsg   = messages[messages.length-1]?.content || '';
+    const jiraCtx   = await buildJiraContext(userMsg);
+
+    // Inyectar contexto de Jira en el último mensaje
+    const augmented = [...messages];
+    if (jiraCtx) {
+      augmented[augmented.length-1] = {
+        ...augmented[augmented.length-1],
+        content: augmented[augmented.length-1].content + jiraCtx
       };
-      const response = await callAI(lastMessages, SYSTEM);
-      return res.status(200).json({ response, similar, provider: PROVIDER });
-    } catch (e) { return res.status(500).json({ error: e.message }); }
+    }
+
+    try {
+      const response = await callAI(augmented.slice(-10), SYSTEM);
+      return res.status(200).json({ response, provider: PROVIDER });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
 
-  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════
   //  ACCIÓN: suggestSolution
-  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════
   if (action === 'suggestSolution') {
     const { ticketKey, summary, area, requesttype, issuetype } = body;
     if (!summary) return res.status(400).json({ error: 'Falta summary' });
-    const similar = await findSimilarTickets(summary.slice(0,60));
-    const prompt = `Analiza este ticket y sugiere solución:
 
-TICKET: ${ticketKey||'N/A'} | ÁREA: ${area||'N/A'} | TIPO: ${issuetype||requesttype||'N/A'}
-DESCRIPCIÓN: ${summary}
-${similar.length?`\nTICKETS SIMILARES RESUELTOS:\n${similar.map(t=>`- ${t.key}: "${t.summary}"${t.lastComment?' → '+t.lastComment:''}`).join('\n')}`:''}
+    // Obtener datos reales del ticket si hay clave
+    let ticketData = '';
+    if (ticketKey) {
+      const t = await getTicket(ticketKey);
+      if (t) {
+        ticketData = `\nDATOS REALES DEL TICKET:\nEstado: ${t.status}\nDescripción: ${t.description?.slice(0,300)}\nComentarios: ${t.comments.slice(-2).map(c=>`${c.author}: ${c.text.slice(0,100)}`).join(' | ')}`;
+      }
+    }
 
-Responde con:
+    // Buscar tickets similares resueltos
+    const similar = await searchJira(
+      `project="${JIRA_PROJ}" AND summary~"${summary.replace(/"/g,'').slice(0,40)}" AND status="Resuelto" ORDER BY created DESC`,
+      5
+    );
+
+    const prompt = `Ticket ${ticketKey||'N/A'} — ${summary}
+Área: ${area||'N/A'} | Tipo: ${issuetype||requesttype||'N/A'}
+${ticketData}
+${similar.length?`\nTICKETS SIMILARES RESUELTOS:\n${similar.map(t=>`- ${t.key}: ${t.summary} → ${t.resolution||'Resuelto'} | ${t.comments[t.comments.length-1]?.text?.slice(0,100)||''}`).join('\n')}`:''}
+
+Responde con pasos numerados:
 1. DIAGNÓSTICO (1 oración)
-2. SOLUCIÓN PASO A PASO (máx 5 pasos)
-3. TIEMPO ESTIMADO
-4. ESCALAR A: (si aplica)`;
+2. PASO 1:
+3. PASO 2:
+4. PASO 3: (si aplica)
+5. TIEMPO ESTIMADO:
+6. ESCALAR A: (solo si es necesario)`;
+
     try {
-      const solution = await callAISimple(prompt, SYSTEM);
+      const solution = await callAI([{role:'user',content:prompt}], SYSTEM);
       return res.status(200).json({ solution, similar, provider: PROVIDER });
-    } catch (e) { return res.status(500).json({ error: e.message }); }
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
 
-  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════
   //  ACCIÓN: analyzeRecurrent
-  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════
   if (action === 'analyzeRecurrent') {
     const { recurrentCases } = body;
     if (!recurrentCases?.length) return res.status(400).json({ error: 'Falta recurrentCases' });
-    const prompt = `Analiza estos casos recurrentes de Mesa de Ayuda de Efletexia:
 
-${recurrentCases.slice(0,10).map(([n,c])=>`- "${n}": ${c} veces`).join('\n')}
+    const prompt = `Casos recurrentes Mesa de Ayuda Efletexia:\n${recurrentCases.slice(0,10).map(([n,c])=>`- "${n}": ${c} veces`).join('\n')}
 
-Proporciona:
-1. CAUSA RAÍZ COMÚN
-2. TOP 3 ACCIONES INMEDIATAS para reducir tickets
-3. SOLUCIONES PREVENTIVAS (cambios en procesos/sistemas)
-4. QUÉ AUTOMATIZAR para eliminar estos tickets
-5. REDUCCIÓN ESTIMADA si se implementan las mejoras (%)`;
+Responde con pasos numerados:
+1. CAUSA RAÍZ COMÚN:
+2. ACCIÓN INMEDIATA 1:
+3. ACCIÓN INMEDIATA 2:
+4. ACCIÓN INMEDIATA 3:
+5. SOLUCIÓN PREVENTIVA:
+6. QUÉ AUTOMATIZAR:
+7. REDUCCIÓN ESTIMADA DE TICKETS: X%`;
+
     try {
-      const analysis = await callAISimple(prompt, SYSTEM);
+      const analysis = await callAI([{role:'user',content:prompt}], SYSTEM);
       return res.status(200).json({ analysis, provider: PROVIDER });
-    } catch (e) { return res.status(500).json({ error: e.message }); }
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
 
   return res.status(400).json({ error: `Acción desconocida: "${action}"` });

@@ -624,37 +624,48 @@ window.sendChat = async function() {
 };
 
 function formatBotMsg(text) {
-  // Convertir **texto** a negrita
   let t = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Convertir líneas que empiezan con número. en pasos
-  t = t.replace(/^(\d+)\.\s+/gm, (m, n) => 
-    `<div class="msg-step"><span class="step-num">${n}</span><span class="step-txt">`
-  );
-  // Cerrar divs de pasos
-  const stepCount = (t.match(/msg-step/g)||[]).length;
-  for(let i=0;i<stepCount;i++) t = t.replace('</span><span class="step-txt">', '</span><span class="step-txt">');
-  // Separar líneas en párrafos
-  t = t.split('\n').map(line => {
-    line = line.trim();
-    if (!line) return '';
-    if (line.includes('msg-step')) return line + '</span></div>';
-    if (line.startsWith('-')) return `<div class="msg-bullet">• ${line.slice(1).trim()}</div>`;
-    if (line.match(/^[A-ZÁÉÍÓÚÑ\s]{4,}:$/)) return `<div class="msg-section">${line}</div>`;
-    if (line.includes(':') && line.split(':')[0].length < 30 && line.split(':')[0] === line.split(':')[0].toUpperCase())
-      return `<div class="msg-label"><span class="lbl-key">${line.split(':')[0]}:</span><span class="lbl-val">${line.split(':').slice(1).join(':')}</span></div>`;
-    return `<div class="msg-line">${line}</div>`;
-  }).join('');
-  return t;
+  const lines = t.split('\n');
+  let html = '';
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { html += '<div style="height:6px"></div>'; continue; }
+    const stepM = line.match(/^(\d+)[\.\):]\s+(.+)/);
+    if (stepM) {
+      html += `<div class="ai-step"><div class="ai-step-n">${stepM[1]}</div><div class="ai-step-t">${stepM[2]}</div></div>`;
+      continue;
+    }
+    if (line.match(/^[A-ZÁÉÍÓÚÑ\s\-]{4,}:$/) || line.endsWith(':') && line === line.toUpperCase()) {
+      html += `<div class="ai-sec">${line}</div>`; continue;
+    }
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0 && colonIdx < 25 && line.slice(0,colonIdx) === line.slice(0,colonIdx).toUpperCase() && line.slice(0,colonIdx).length > 2) {
+      html += `<div class="ai-lbl"><span class="ai-lbl-k">${line.slice(0,colonIdx)}:</span><span class="ai-lbl-v">${line.slice(colonIdx+1)}</span></div>`;
+      continue;
+    }
+    if (line.startsWith('- ') || line.startsWith('• ')) {
+      html += `<div class="ai-bullet">• ${line.slice(2)}</div>`; continue;
+    }
+    html += `<div class="ai-line">${line}</div>`;
+  }
+  return html;
 }
 
 function appendMsg(type, text, isHtml=false) {
   const msgs = document.getElementById('chatMsgs');
-  const div  = document.createElement('div');
-  div.className = `msg ${type}`;
-  if (isHtml) div.innerHTML = text;
-  else if (type === 'bot') div.innerHTML = formatBotMsg(text);
-  else div.textContent = text;
-  msgs.appendChild(div);
+  const wrap = document.createElement('div');
+  wrap.className = `ai-msg ${type}`;
+  const avatar = document.createElement('div');
+  avatar.className = 'ai-msg-avatar';
+  avatar.textContent = type === 'bot' ? '🤖' : '👤';
+  const bubble = document.createElement('div');
+  bubble.className = 'ai-msg-bubble';
+  if (isHtml) bubble.innerHTML = text;
+  else if (type === 'bot') bubble.innerHTML = formatBotMsg(text);
+  else bubble.textContent = text;
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  msgs.appendChild(wrap);
   scrollChat();
 }
 
@@ -721,3 +732,11 @@ setTimeout(() => {
   const notif = document.getElementById('agentNotif');
   if (notif) notif.style.display = 'flex';
 }, 3000);
+
+window.clearChat = function() {
+  const msgs = document.getElementById('chatMsgs');
+  if (msgs) msgs.innerHTML = '<div class="ai-msg bot"><div class="ai-msg-avatar">🤖</div><div class="ai-msg-bubble">Chat limpiado. ¿En qué te puedo ayudar?</div></div>';
+  chatHistory = [];
+  const qb = document.getElementById('quickBtns');
+  if (qb) qb.style.display = 'flex';
+};

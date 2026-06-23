@@ -47,9 +47,7 @@ body{font-family:'Outfit',sans-serif;background:#0a0a0a;color:#e2e8f0;min-height
 .hdr::after{content:'';position:absolute;inset:0;
   background:radial-gradient(ellipse at 80% 50%,rgba(59,130,246,.12) 0%,transparent 70%)}
 .hdr-l{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
-.logo-wrap{display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.1);border-radius:12px;padding:6px 10px;
-  min-width:46px;height:46px;flex-shrink:0}
+.logo-wrap{display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);
   display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;
   color:#fff;letter-spacing:-1px;box-shadow:0 4px 12px rgba(59,130,246,.4)}
@@ -440,7 +438,9 @@ tr:hover td{background:#1a1a2e}
     <div class="logo-wrap">
       <img src="logo.png"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-           alt="Efletexia" style="height:46px;width:auto;object-fit:contain">
+           alt="Efletexia"
+           style="height:52px;width:52px;object-fit:contain;border-radius:10px;
+                  background:#fff;padding:4px;box-shadow:0 2px 12px rgba(0,0,0,.3)">
       <div class="logo" style="display:none">EF</div>
     </div>
     <div>

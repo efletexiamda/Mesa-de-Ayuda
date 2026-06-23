@@ -73,11 +73,10 @@ body{font-family:'Outfit',sans-serif;background:#0a0a0a;color:#e2e8f0;min-height
 .wrap{padding:24px 36px;max-width:1700px;margin:0 auto;background:#0a0a0a}
 
 /* TABS */
-.tabs{display:flex;gap:6px;margin-bottom:22px;flex-wrap:wrap;align-items:center}
-.tab{padding:7px 18px;border-radius:8px;border:1.5px solid var(--brd2);font-size:12px;
-  font-weight:700;cursor:pointer;background:#fff;color:var(--mut);transition:all .15s}
-.tab.on{background:var(--tx);color:#fff;border-color:var(--tx)}
-.tab:not(.on):hover{border-color:var(--b);color:var(--b)}
+.tabs{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap;align-items:center;padding:14px 16px;background:rgba(255,255,255,.03);border-radius:14px;border:1px solid rgba(255,255,255,.07)}
+.tab{padding:9px 22px;border-radius:10px;border:1.5px solid rgba(255,255,255,.14);font-size:12px;font-weight:700;cursor:pointer;background:rgba(255,255,255,.07);color:#cbd5e1;transition:all .2s}
+.tab.on{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-color:rgba(59,130,246,.6);box-shadow:0 2px 14px rgba(37,99,235,.4)}
+.tab:not(.on):hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#f1f5f9}
 .tsep{width:1px;height:20px;background:var(--brd);margin:0 4px;flex-shrink:0}
 .dfilter{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
 .dfilter label{font-size:11px;font-weight:700;color:var(--mut)}

@@ -385,17 +385,38 @@ function kill(id) { if(CH[id]){ CH[id].destroy(); delete CH[id]; } }
 function pie(id,labels,data,colors) {
   kill(id);
   const ctx=_id(id)?.getContext('2d'); if(!ctx) return;
-  CH[id]=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff',hoverOffset:4}]},options:{responsive:true,cutout:'58%',plugins:{legend:{position:'bottom',labels:{font:{size:9,weight:'700'},padding:7,usePointStyle:true,pointStyle:'circle',boxWidth:8}},tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((a,b)=>a+b,0);return ` ${c.label}: ${c.raw} (${t?((c.raw/t)*100).toFixed(1):0}%)`;}}}}}});
+  CH[id]=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,borderColor:'transparent',hoverOffset:6,hoverBorderWidth:2,hoverBorderColor:'rgba(255,255,255,.3)'}]},options:{responsive:true,cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:9,weight:'700'},padding:10,usePointStyle:true,pointStyle:'circle',boxWidth:8,color:'#94a3b8'}},tooltip:{backgroundColor:'rgba(15,15,30,.95)',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'rgba(124,58,237,.3)',borderWidth:1,padding:10,callbacks:{label:c=>{const t=c.dataset.data.reduce((a,b)=>a+b,0);return ` ${c.label}: ${c.raw} (${t?((c.raw/t)*100).toFixed(1):0}%)`;}}}}}});
 }
 function gbar(id,labels,s,inc,h=false) {
   kill(id);
   const ctx=_id(id)?.getContext('2d'); if(!ctx) return;
-  CH[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Solicitud',data:s,backgroundColor:G,borderRadius:4,borderSkipped:false},{label:'Incidente',data:inc,backgroundColor:R,borderRadius:4,borderSkipped:false}]},options:{indexAxis:h?'y':'x',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}`}}},scales:{x:h?{grid:{color:'#f1f5f9'},ticks:{font:{size:9},precision:0},beginAtZero:true}:{grid:{display:false},ticks:{font:{size:9},maxRotation:28}},y:h?{grid:{display:false},ticks:{font:{size:9}}}:{grid:{color:'#f1f5f9'},ticks:{font:{size:9},precision:0},beginAtZero:true}}}});
+  const gridColor='rgba(255,255,255,.04)';
+  const tickColor='#475569';
+  CH[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[
+    {label:'Solicitud',data:s,backgroundColor:'rgba(34,197,94,.85)',borderRadius:6,borderSkipped:false,hoverBackgroundColor:'rgba(34,197,94,1)'},
+    {label:'Incidente',data:inc,backgroundColor:'rgba(239,68,68,.85)',borderRadius:6,borderSkipped:false,hoverBackgroundColor:'rgba(239,68,68,1)'}
+  ]},options:{indexAxis:h?'y':'x',responsive:true,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(15,15,30,.95)',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'rgba(124,58,237,.3)',borderWidth:1,padding:10,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}`}}},
+    scales:{
+      x:h?{grid:{color:gridColor,drawBorder:false},ticks:{font:{size:9},precision:0,color:tickColor},beginAtZero:true,border:{display:false}}
+         :{grid:{display:false},ticks:{font:{size:9},maxRotation:28,color:tickColor},border:{display:false}},
+      y:h?{grid:{display:false},ticks:{font:{size:9},color:tickColor},border:{display:false}}
+         :{grid:{color:gridColor,drawBorder:false},ticks:{font:{size:9},precision:0,color:tickColor},beginAtZero:true,border:{display:false}}
+    }}});
 }
 function sBar(id,labels,data,color,h=false) {
   kill(id);
   const ctx=_id(id)?.getContext('2d'); if(!ctx) return;
-  CH[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Ocurrencias',data,backgroundColor:color,borderRadius:4,borderSkipped:false}]},options:{indexAxis:h?'y':'x',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` Ocurrencias: ${c.raw}`}}},scales:{x:h?{grid:{color:'#f1f5f9'},ticks:{font:{size:9},precision:0},beginAtZero:true}:{grid:{display:false},ticks:{font:{size:9}}},y:h?{grid:{display:false},ticks:{font:{size:9}}}:{grid:{color:'#f1f5f9'},ticks:{font:{size:9},precision:0},beginAtZero:true}}}});
+  const gridColor='rgba(255,255,255,.04)';
+  const tickColor='#475569';
+  CH[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Ocurrencias',data,backgroundColor:color,borderRadius:6,borderSkipped:false,hoverBackgroundColor:color}]},options:{indexAxis:h?'y':'x',responsive:true,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(15,15,30,.95)',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'rgba(124,58,237,.3)',borderWidth:1,padding:10,callbacks:{label:c=>` Ocurrencias: ${c.raw}`}}},
+    scales:{
+      x:h?{grid:{color:gridColor,drawBorder:false},ticks:{font:{size:9},precision:0,color:tickColor},beginAtZero:true,border:{display:false}}
+         :{grid:{display:false},ticks:{font:{size:9},color:tickColor},border:{display:false}},
+      y:h?{grid:{display:false},ticks:{font:{size:9},color:tickColor},border:{display:false}}
+         :{grid:{color:gridColor,drawBorder:false},ticks:{font:{size:9},precision:0,color:tickColor},beginAtZero:true,border:{display:false}}
+    }}});
 }
 
 function renderCharts(d) {
@@ -404,7 +425,7 @@ function renderCharts(d) {
   kill('cEvol');
   const ks=Object.keys(D);
   const ce=_id('cEvol')?.getContext('2d');
-  if(ce) CH['cEvol']=new Chart(ce,{type:'bar',data:{labels:ks.map(k=>{const[y,m]=k.split('-').map(Number);return msht(y,m);}),datasets:[{label:'Solicitud',data:ks.map(k=>D[k].sol),backgroundColor:G,borderRadius:4,borderSkipped:false},{label:'Incidente',data:ks.map(k=>D[k].inc),backgroundColor:R,borderRadius:4,borderSkipped:false}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#f1f5f9'},ticks:{font:{size:9},precision:0},beginAtZero:true}}}});
+  if(ce) CH['cEvol']=new Chart(ce,{type:'bar',data:{labels:ks.map(k=>{const[y,m]=k.split('-').map(Number);return msht(y,m);}),datasets:[{label:'Solicitud',data:ks.map(k=>D[k].sol),backgroundColor:'rgba(34,197,94,.85)',borderRadius:6,borderSkipped:false,hoverBackgroundColor:'rgba(34,197,94,1)'},{label:'Incidente',data:ks.map(k=>D[k].inc),backgroundColor:'rgba(239,68,68,.85)',borderRadius:6,borderSkipped:false,hoverBackgroundColor:'rgba(239,68,68,1)'}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(15,15,30,.95)',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'rgba(124,58,237,.3)',borderWidth:1,padding:10,callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#475569'},border:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)',drawBorder:false},ticks:{font:{size:9},precision:0,color:'#475569'},beginAtZero:true,border:{display:false}}}}});
   const tA=[...new Set([...Object.keys(d.tipo.sol),...Object.keys(d.tipo.inc)])];
   pie('cTipoPie',tA,tA.map(k=>(d.tipo.sol[k]||0)+(d.tipo.inc[k]||0)),[G,R,'#8b5cf6']);
   gbar('cTipoCol',tA,tA.map(k=>d.tipo.sol[k]||0),tA.map(k=>d.tipo.inc[k]||0));

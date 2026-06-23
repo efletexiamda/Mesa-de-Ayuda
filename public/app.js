@@ -761,3 +761,54 @@ window.clearChat = function() {
   const qb = document.getElementById('quickBtns');
   if (qb) qb.style.display = 'flex';
 };
+
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE — MÓVIL
+══════════════════════════════════════════════════════ */
+
+// Filtro móvil
+window.toggleMobFilter = function() {
+  const panel = document.getElementById('mobFilterPanel');
+  const btn   = document.getElementById('filterMobBtn');
+  if (!panel) return;
+  const visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? '📅 Filtrar' : '✕ Cerrar';
+
+  // Sincronizar valores con el filtro desktop
+  if (!visible) {
+    const dFrom = document.getElementById('dFrom');
+    const dTo   = document.getElementById('dTo');
+    const mFrom = document.getElementById('dFromMob');
+    const mTo   = document.getElementById('dToMob');
+    if (mFrom && dFrom) mFrom.value = dFrom.value;
+    if (mTo   && dTo)   mTo.value   = dTo.value;
+  }
+};
+
+window.applyMobFilter = function() {
+  const mFrom = document.getElementById('dFromMob');
+  const mTo   = document.getElementById('dToMob');
+  const dFrom = document.getElementById('dFrom');
+  const dTo   = document.getElementById('dTo');
+  if (mFrom && dFrom) dFrom.value = mFrom.value;
+  if (mTo   && dTo)   dTo.value   = mTo.value;
+  document.getElementById('mobFilterPanel').style.display = 'none';
+  document.getElementById('filterMobBtn').textContent = '📅 Filtrar';
+  loadFromJira();
+};
+
+// Detectar móvil y ajustar agente
+(function responsiveInit() {
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    // Cerrar agente al hacer scroll en móvil
+    window.addEventListener('scroll', () => {
+      if (agentOpen && window.scrollY > 100) {
+        // No cerrar automáticamente — solo minimizar tooltip
+        const tooltip = document.getElementById('aiFabTooltip');
+        if (tooltip) tooltip.style.display = 'none';
+      }
+    });
+  }
+})();

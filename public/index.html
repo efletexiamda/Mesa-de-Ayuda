@@ -208,6 +208,211 @@ tr:hover td{background:#1a1a2e}
 .msg.bot{background:#1a1a2e;border:1px solid #2a2a3e;padding:12px 15px;line-height:1.6;color:#e2e8f0}
 .agent-panel{width:480px}
 
+
+/* ══ AGENTE IA FLOTANTE — DISEÑO MEJORADO ══════════════════ */
+
+/* FAB wrap */
+.ai-fab-wrap{position:fixed;bottom:30px;right:30px;z-index:1000;
+  display:flex;flex-direction:column;align-items:center;gap:6px}
+
+/* Tooltip */
+.ai-fab-tooltip{background:#1e1b4b;color:#c4b5fd;font-size:10px;font-weight:700;
+  padding:4px 10px;border-radius:20px;border:1px solid #4c1d95;white-space:nowrap;
+  animation:fadeInUp .4s ease;pointer-events:none}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* FAB button */
+.ai-fab{width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5,#6d28d9);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  box-shadow:0 4px 24px rgba(124,58,237,.6),0 0 0 0 rgba(124,58,237,.4);
+  animation:fabPulse 3s ease infinite;transition:transform .2s,box-shadow .2s}
+.ai-fab:hover{transform:scale(1.1);box-shadow:0 6px 32px rgba(124,58,237,.8)}
+@keyframes fabPulse{0%,100%{box-shadow:0 4px 24px rgba(124,58,237,.6),0 0 0 0 rgba(124,58,237,.4)}
+  50%{box-shadow:0 4px 24px rgba(124,58,237,.6),0 0 0 12px rgba(124,58,237,0)}}
+
+/* Ring animado */
+.ai-fab-ring{position:absolute;inset:-4px;border-radius:50%;
+  border:2px solid rgba(167,139,250,.4);animation:ringPulse 2s ease infinite}
+@keyframes ringPulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+
+.ai-fab-icon{position:relative;z-index:1}
+.ai-fab-badge{position:absolute;top:-2px;right:-2px;width:18px;height:18px;
+  background:#ef4444;border-radius:50%;font-size:10px;font-weight:800;color:#fff;
+  display:flex;align-items:center;justify-content:center;border:2px solid #0a0a0a}
+.ai-fab-label{font-size:9px;font-weight:800;color:#7c3aed;letter-spacing:.5px;text-transform:uppercase}
+
+/* Panel flotante */
+.ai-panel{position:fixed;bottom:110px;right:30px;width:420px;max-height:82vh;
+  background:linear-gradient(180deg,#0f0a1e 0%,#0a0a14 100%);
+  border:1px solid rgba(124,58,237,.3);border-radius:20px;
+  box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 0 1px rgba(124,58,237,.1),
+             inset 0 1px 0 rgba(255,255,255,.05);
+  z-index:1001;display:flex;flex-direction:column;overflow:hidden;
+  transform:scale(0.92) translateY(16px);opacity:0;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .25s ease;
+  pointer-events:none}
+.ai-panel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+
+/* Header */
+.ai-panel-hdr{background:linear-gradient(135deg,#4c1d95,#3730a3,#1e1b4b);
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;position:relative;overflow:hidden}
+.ai-panel-hdr::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% 50%,rgba(167,139,250,.15),transparent 70%)}
+.ai-hdr-left{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.ai-avatar{width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.2)}
+.ai-name{font-size:13px;font-weight:800;color:#fff}
+.ai-status{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;
+  box-shadow:0 0 6px #4ade80;animation:blink 2s ease infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.ai-hdr-actions{display:flex;gap:4px;position:relative;z-index:1}
+.ai-hdr-btn{width:28px;height:28px;border-radius:8px;border:none;
+  background:rgba(255,255,255,.08);cursor:pointer;display:flex;
+  align-items:center;justify-content:center;transition:background .15s}
+.ai-hdr-btn:hover{background:rgba(255,255,255,.18)}
+
+/* Tabs */
+.ai-tabs{display:flex;background:#07050f;border-bottom:1px solid rgba(124,58,237,.2);flex-shrink:0}
+.ai-tab{flex:1;padding:10px 4px;font-size:10px;font-weight:700;border:none;
+  background:none;cursor:pointer;color:#64748b;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  border-bottom:2px solid transparent;transition:all .2s}
+.ai-tab.on{color:#a78bfa;border-bottom-color:#7c3aed;background:rgba(124,58,237,.08)}
+.ai-tab:not(.on):hover{color:#94a3b8;background:rgba(255,255,255,.03)}
+
+/* Body */
+.ai-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;
+  padding:14px;min-height:200px;scrollbar-width:thin;scrollbar-color:#2a1a4e transparent}
+.ai-body::-webkit-scrollbar{width:4px}
+.ai-body::-webkit-scrollbar-thumb{background:#2a1a4e;border-radius:4px}
+
+/* Quick buttons */
+.ai-quick-btns{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:4px}
+.ai-qbtn{padding:5px 10px;border-radius:20px;border:1px solid rgba(124,58,237,.3);
+  font-size:10px;font-weight:600;cursor:pointer;background:rgba(124,58,237,.08);
+  color:#a78bfa;font-family:inherit;transition:all .15s;white-space:nowrap}
+.ai-qbtn:hover{background:rgba(124,58,237,.2);border-color:rgba(167,139,250,.5);color:#c4b5fd}
+
+/* Mensajes */
+.ai-msgs{display:flex;flex-direction:column;gap:12px;flex:1}
+.ai-msg{display:flex;align-items:flex-start;gap:8px}
+.ai-msg.user{flex-direction:row-reverse}
+.ai-msg-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;
+  border:1px solid rgba(124,58,237,.4)}
+.ai-msg-bubble{max-width:82%;padding:10px 13px;border-radius:16px;font-size:12px;line-height:1.6}
+.ai-msg.bot .ai-msg-bubble{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
+  color:#e2e8f0;border-radius:4px 16px 16px 16px}
+.ai-msg.user .ai-msg-bubble{background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  color:#fff;border-radius:16px 16px 4px 16px}
+.ai-msg-bubble strong{color:#c4b5fd;font-weight:800}
+.ai-msg-bubble em{color:#a78bfa;font-style:normal}
+
+/* Typing */
+.ai-typing{display:flex;align-items:center;gap:8px}
+.ai-typing-dots{display:flex;gap:4px;padding:10px 14px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);border-radius:4px 16px 16px 16px}
+.ai-typing-dots span{width:7px;height:7px;border-radius:50%;background:#7c3aed;
+  animation:typingBounce 1.2s ease infinite}
+.ai-typing-dots span:nth-child(2){animation-delay:.2s}
+.ai-typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}
+
+/* Input */
+.ai-input-wrap{display:flex;gap:8px;padding:12px 14px;
+  border-top:1px solid rgba(124,58,237,.15);flex-shrink:0;
+  background:rgba(0,0,0,.3);backdrop-filter:blur(4px)}
+.ai-input{flex:1;border:1.5px solid rgba(124,58,237,.25);border-radius:12px;
+  padding:9px 13px;font-size:12px;font-family:inherit;outline:none;resize:none;
+  max-height:100px;min-height:38px;background:rgba(255,255,255,.05);
+  color:#e2e8f0;transition:border-color .2s;line-height:1.5}
+.ai-input:focus{border-color:rgba(124,58,237,.6);background:rgba(255,255,255,.07)}
+.ai-input::placeholder{color:#4a5568}
+.ai-send{width:38px;height:38px;border-radius:12px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;
+  transition:transform .15s,opacity .15s;box-shadow:0 2px 12px rgba(124,58,237,.4)}
+.ai-send:hover{transform:scale(1.05)}
+.ai-send:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* Recurrentes */
+.ai-rec-wrap{background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);
+  border-radius:14px;padding:14px}
+.ai-rec-title{font-size:11px;font-weight:800;color:#a78bfa;margin-bottom:12px;
+  display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+.ai-rec-list{display:flex;flex-direction:column;gap:6px}
+.rec-item{display:flex;align-items:center;gap:8px;padding:7px 10px;
+  background:rgba(255,255,255,.04);border-radius:10px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.06);transition:all .15s}
+.rec-item:hover{background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.3)}
+.rec-bar-wrap{flex:1;min-width:0}
+.rec-label{font-size:10.5px;font-weight:600;color:#e2e8f0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-bar{height:3px;border-radius:100px;
+  background:linear-gradient(90deg,#7c3aed,#a78bfa);margin-top:4px}
+.rec-count{font-size:11px;font-weight:800;color:#a78bfa;flex-shrink:0;
+  background:rgba(124,58,237,.2);padding:2px 7px;border-radius:20px}
+.ai-analyze-btn{width:100%;padding:9px;border-radius:10px;border:none;margin-top:12px;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:11px;
+  font-weight:700;cursor:pointer;font-family:inherit;display:flex;
+  align-items:center;justify-content:center;gap:6px;
+  box-shadow:0 2px 12px rgba(124,58,237,.35);transition:opacity .2s}
+.ai-analyze-btn:disabled{opacity:.5;cursor:not-allowed}
+.ai-analysis-result{background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.2);
+  border-radius:12px;padding:14px}
+.ai-result-title{font-size:11px;font-weight:800;color:#4ade80;margin-bottom:8px;
+  display:flex;align-items:center;gap:5px}
+.ai-result-text{font-size:11.5px;color:#cbd5e1;line-height:1.7;white-space:pre-wrap}
+
+/* Resolver ticket */
+.ai-solve-wrap{display:flex;flex-direction:column;gap:12px}
+.ai-solve-hint{font-size:11px;color:#94a3b8}
+.ai-solve-row{display:flex;gap:8px}
+.ai-ticket-input{flex:1;padding:9px 13px;border:1.5px solid rgba(124,58,237,.25);
+  border-radius:12px;font-size:12px;font-family:inherit;outline:none;
+  background:rgba(255,255,255,.05);color:#e2e8f0;transition:border-color .2s}
+.ai-ticket-input:focus{border-color:rgba(124,58,237,.6)}
+.ai-ticket-input::placeholder{color:#4a5568}
+.ai-solve-btn{width:40px;height:40px;border-radius:12px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;
+  box-shadow:0 2px 12px rgba(124,58,237,.4)}
+.ai-loading{text-align:center;padding:16px}
+.ai-loading-txt{font-size:11px;color:#64748b;margin-top:8px}
+.ai-solution{background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.2);
+  border-radius:12px;padding:14px}
+.ai-solution-title{font-size:11px;font-weight:800;color:#4ade80;margin-bottom:10px;
+  display:flex;align-items:center;gap:6px}
+.ai-solution-text{font-size:11.5px;color:#cbd5e1;line-height:1.7;white-space:pre-wrap}
+.ai-similar{margin-top:10px;padding-top:10px;border-top:1px solid rgba(74,222,128,.2)}
+.ai-similar-title{font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:6px}
+.sim-tag{display:inline-block;padding:2px 8px;border-radius:20px;
+  background:rgba(59,130,246,.15);color:#93c5fd;font-size:10px;
+  font-weight:700;margin:2px;border:1px solid rgba(59,130,246,.25);
+  text-decoration:none}
+.sim-tag:hover{background:rgba(59,130,246,.25)}
+
+/* Formato mensajes bot */
+.ai-step{display:flex;align-items:flex-start;gap:8px;margin:5px 0;
+  padding:7px 10px;background:rgba(124,58,237,.1);border-radius:8px;
+  border-left:3px solid #7c3aed}
+.ai-step-n{min-width:20px;height:20px;border-radius:50%;background:#7c3aed;
+  color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0}
+.ai-step-t{font-size:11.5px;line-height:1.5;color:#e2e8f0;flex:1}
+.ai-sec{font-size:9px;font-weight:800;color:#a78bfa;letter-spacing:1px;
+  text-transform:uppercase;margin:8px 0 4px;border-bottom:1px solid rgba(124,58,237,.3);
+  padding-bottom:3px}
+.ai-lbl{display:flex;gap:6px;padding:3px 0;font-size:11px}
+.ai-lbl-k{font-weight:800;color:#94a3b8;min-width:90px;flex-shrink:0}
+.ai-lbl-v{color:#e2e8f0}
+.ai-line{font-size:11.5px;line-height:1.6;padding:1px 0;color:#cbd5e1}
+.ai-bullet{padding:2px 0 2px 4px;font-size:11.5px;color:#94a3b8;line-height:1.5}
+
 /* FOOTER */
 .footer{text-align:center;font-size:11px;color:#475569;padding-bottom:16px}
 </style>
@@ -442,98 +647,158 @@ tr:hover td{background:#1a1a2e}
 </div>
 
 
-<!-- ══ AGENTE IA ═══════════════════════════════════════ -->
-<button class="agent-fab" onclick="toggleAgent()" title="Agente IA Mesa de Ayuda">
-  🤖<div class="notif" id="agentNotif" style="display:none">1</div>
-</button>
+<!-- ══ AGENTE IA FLOTANTE ══════════════════════════════ -->
 
-<div class="agent-panel" id="agentPanel">
-  <!-- Header -->
-  <div class="agent-header">
-    <div class="agent-avatar">🤖</div>
-    <div class="agent-hinfo">
-      <div class="agent-name">Agente IA · Mesa de Ayuda</div>
-      <div class="agent-status"><div class="agent-dot"></div>En línea · Powered by Claude</div>
+<!-- Botón FAB flotante mejorado -->
+<div class="ai-fab-wrap" id="aiFabWrap">
+  <div class="ai-fab-tooltip" id="aiFabTooltip">¡Tengo actualizaciones!</div>
+  <button class="ai-fab" onclick="toggleAgent()" id="aiFabBtn">
+    <div class="ai-fab-ring"></div>
+    <div class="ai-fab-icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="rgba(255,255,255,0.15)"/>
+        <path d="M8 11h8M8 15h5" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="9" cy="7.5" r="1.5" fill="white"/>
+        <circle cx="15" cy="7.5" r="1.5" fill="white"/>
+        <path d="M9 7.5 Q12 10 15 7.5" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      </svg>
     </div>
-    <button class="agent-close" onclick="toggleAgent()">✕</button>
+    <div class="ai-fab-badge" id="agentNotif" style="display:none">1</div>
+  </button>
+  <div class="ai-fab-label">Agente IA</div>
+</div>
+
+<!-- Panel flotante del agente -->
+<div class="ai-panel" id="agentPanel">
+
+  <!-- Header con gradiente -->
+  <div class="ai-panel-hdr">
+    <div class="ai-hdr-left">
+      <div class="ai-avatar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="8" r="4" fill="rgba(255,255,255,0.9)"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="rgba(255,255,255,0.7)"/>
+        </svg>
+      </div>
+      <div>
+        <div class="ai-name">Agente IA · Mesa de Ayuda</div>
+        <div class="ai-status"><span class="ai-dot"></span>En línea · Groq Llama 3.3</div>
+      </div>
+    </div>
+    <div class="ai-hdr-actions">
+      <button class="ai-hdr-btn" onclick="clearChat()" title="Limpiar chat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      </button>
+      <button class="ai-hdr-btn" onclick="toggleAgent()" title="Cerrar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
   </div>
 
   <!-- Tabs -->
-  <div class="agent-tabs">
-    <button class="agent-tab on" onclick="setAgentTab(0)" id="atab0">💬 Chat</button>
-    <button class="agent-tab"    onclick="setAgentTab(1)" id="atab1">🔁 Recurrentes</button>
-    <button class="agent-tab"    onclick="setAgentTab(2)" id="atab2">⚡ Resolver Ticket</button>
+  <div class="ai-tabs">
+    <button class="ai-tab on" onclick="setAgentTab(0)" id="atab0">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Chat
+    </button>
+    <button class="ai-tab" onclick="setAgentTab(1)" id="atab1">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16M4 9h10M4 14h6"/></svg>
+      Recurrentes
+    </button>
+    <button class="ai-tab" onclick="setAgentTab(2)" id="atab2">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      Resolver
+    </button>
   </div>
 
-  <!-- Tab 0: Chat -->
-  <div id="apanel0" class="agent-body">
-    <div class="quick-btns" id="quickBtns">
-      <button class="qbtn" onclick="quickMsg('¿Cómo liberar un pedido bloqueado?')">🔓 Liberar pedido</button>
-      <button class="qbtn" onclick="quickMsg('¿Cómo eliminar una referencia del OPL?')">🗑️ Eliminar referencia</button>
-      <button class="qbtn" onclick="quickMsg('¿Cómo cambiar la placa de un transportista?')">🚛 Cambio de placa</button>
-      <button class="qbtn" onclick="quickMsg('Hay diferencia de monto en prefactura')">💰 Diferencia monto</button>
-      <button class="qbtn" onclick="quickMsg('Un usuario no puede acceder al sistema')">🔑 Problema acceso</button>
+  <!-- ── TAB 0: CHAT ── -->
+  <div id="apanel0" class="ai-body">
+    <div class="ai-quick-btns" id="quickBtns">
+      <button class="ai-qbtn" onclick="quickMsg('¿Cómo liberar un pedido bloqueado?')">🔓 Liberar pedido</button>
+      <button class="ai-qbtn" onclick="quickMsg('¿Cómo eliminar una referencia del OPL?')">🗑️ Eliminar referencia</button>
+      <button class="ai-qbtn" onclick="quickMsg('¿Cómo cambiar la placa de un transportista?')">🚛 Cambio de placa</button>
+      <button class="ai-qbtn" onclick="quickMsg('Hay una diferencia de monto en prefactura')">💰 Diferencia monto</button>
+      <button class="ai-qbtn" onclick="quickMsg('Listar todos los tickets pendientes')">📋 Ver pendientes</button>
+      <button class="ai-qbtn" onclick="quickMsg('Listar los tickets escalados')">🚨 Ver escalados</button>
     </div>
-    <div class="chat-msgs" id="chatMsgs">
-      <div class="msg bot">¡Hola! Soy el Agente IA de Mesa de Ayuda de <strong>Efletexia</strong>. Puedo ayudarte a resolver casos de soporte, consultar tickets similares resueltos y sugerir soluciones. ¿En qué te ayudo?</div>
-    </div>
-    <div id="typingIndicator" style="display:none">
-      <div class="typing"><span></span><span></span><span></span></div>
-    </div>
-  </div>
-  <div class="chat-input-wrap" id="chatInputWrap">
-    <textarea class="chat-input" id="chatInput" placeholder="Describe el problema o pregunta..." rows="1"
-      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"
-      oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
-    <button class="chat-send" onclick="sendChat()" id="chatSendBtn">➤</button>
-  </div>
-
-  <!-- Tab 1: Recurrentes -->
-  <div id="apanel1" class="agent-body" style="display:none">
-    <div class="rec-card">
-      <div class="rec-title">🔁 Casos Más Recurrentes</div>
-      <div id="recList"></div>
-      <button class="btn-analyze" onclick="analyzeRecurrent()" id="btnAnalyze">
-        ✦ Analizar con IA y generar plan de acción
-      </button>
-    </div>
-    <div id="recAnalysis" style="display:none">
-      <div class="sol-card">
-        <div class="sol-title">📊 Análisis IA de Casos Recurrentes</div>
-        <div class="sol-text" id="recAnalysisText"></div>
+    <div class="ai-msgs" id="chatMsgs">
+      <div class="ai-msg bot">
+        <div class="ai-msg-avatar">🤖</div>
+        <div class="ai-msg-bubble">
+          ¡Hola! Soy el Agente IA de Mesa de Ayuda de <strong>Efletexia</strong>.<br>
+          Tengo acceso directo a Jira en tiempo real. Puedo:<br>
+          • Consultar cualquier ticket (ej: <em>TK-641</em>)<br>
+          • Listar pendientes y escalados<br>
+          • Sugerir soluciones paso a paso<br>
+          ¿En qué te ayudo?
+        </div>
       </div>
     </div>
+    <div class="ai-typing" id="typingIndicator" style="display:none">
+      <div class="ai-msg-avatar">🤖</div>
+      <div class="ai-typing-dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+  <div class="ai-input-wrap" id="chatInputWrap">
+    <textarea class="ai-input" id="chatInput"
+      placeholder="Escribe tu consulta o número de ticket..."
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"
+      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"
+      rows="1"></textarea>
+    <button class="ai-send" onclick="sendChat()" id="chatSendBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+    </button>
   </div>
 
-  <!-- Tab 2: Resolver Ticket -->
-  <div id="apanel2" class="agent-body" style="display:none">
-    <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">
-      Ingresa la clave o descripción del ticket para obtener una solución sugerida por IA:
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input id="ticketInput" placeholder="Ej: TK-648 o 'Error en mis cargas'"
-        style="flex:1;padding:8px 12px;border:1.5px solid #2a2a3e;border-radius:10px;font-size:12px;font-family:inherit;outline:none;background:#1a1a2e;color:#e2e8f0"
-        onkeydown="if(event.key==='Enter')solveTicket()">
-      <button onclick="solveTicket()" id="btnSolve"
-        style="padding:8px 16px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">
-        Resolver
+  <!-- ── TAB 1: RECURRENTES ── -->
+  <div id="apanel1" class="ai-body" style="display:none">
+    <div class="ai-rec-wrap">
+      <div class="ai-rec-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg>
+        Casos más repetidos del período
+      </div>
+      <div id="recList" class="ai-rec-list"></div>
+      <button class="ai-analyze-btn" onclick="analyzeRecurrent()" id="btnAnalyze">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        Analizar con IA · Generar plan de acción
       </button>
     </div>
-    <div id="ticketSolution" style="display:none">
-      <div class="sol-card">
-        <div class="sol-title">⚡ Solución Sugerida por IA</div>
-        <div class="sol-text" id="solutionText"></div>
-        <div class="sol-similar" id="similarSection" style="display:none">
-          <div class="sol-sim-title">Tickets similares resueltos:</div>
+    <div id="recAnalysis" style="display:none" class="ai-analysis-result">
+      <div class="ai-result-title">📊 Análisis IA</div>
+      <div id="recAnalysisText" class="ai-result-text"></div>
+    </div>
+  </div>
+
+  <!-- ── TAB 2: RESOLVER TICKET ── -->
+  <div id="apanel2" class="ai-body" style="display:none">
+    <div class="ai-solve-wrap">
+      <div class="ai-solve-hint">Ingresa la clave o descripción del ticket:</div>
+      <div class="ai-solve-row">
+        <input id="ticketInput" class="ai-ticket-input"
+          placeholder="TK-648 o descripción del problema"
+          onkeydown="if(event.key==='Enter')solveTicket()">
+        <button onclick="solveTicket()" id="btnSolve" class="ai-solve-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        </button>
+      </div>
+      <div id="solveLoading" style="display:none" class="ai-loading">
+        <div class="ai-typing-dots" style="margin:0 auto;width:fit-content"><span></span><span></span><span></span></div>
+        <div class="ai-loading-txt">Consultando Jira y analizando con IA...</div>
+      </div>
+      <div id="ticketSolution" style="display:none" class="ai-solution">
+        <div class="ai-solution-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Solución sugerida por IA
+        </div>
+        <div id="solutionText" class="ai-solution-text"></div>
+        <div id="similarSection" style="display:none" class="ai-similar">
+          <div class="ai-similar-title">Tickets similares resueltos:</div>
           <div id="similarTags"></div>
         </div>
       </div>
     </div>
-    <div id="solveLoading" style="display:none;text-align:center;padding:20px">
-      <div class="typing" style="margin:0 auto;width:fit-content"><span></span><span></span><span></span></div>
-      <div style="font-size:11px;color:#64748b;margin-top:8px">Consultando IA y tickets similares...</div>
-    </div>
   </div>
+
 </div>
 
 <script src="app.js"></script>

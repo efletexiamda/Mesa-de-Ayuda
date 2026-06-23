@@ -412,6 +412,130 @@ tr:hover td{background:#1a1a2e}
 
 /* FOOTER */
 .footer{text-align:center;font-size:11px;color:#475569;padding-bottom:16px}
+
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE — MÓVIL Y TABLET
+══════════════════════════════════════════════════════ */
+
+/* ── TABLET (≤1024px) ────────────────────────────── */
+@media (max-width:1024px) {
+  .wrap{padding:16px 20px}
+  .kpis{grid-template-columns:repeat(4,1fr);gap:8px}
+  .g3{grid-template-columns:repeat(2,1fr)}
+  .g3 > *:last-child{grid-column:1/-1}
+  .g21{grid-template-columns:1fr}
+  .g12{grid-template-columns:1fr}
+  .hdr{padding:16px 20px}
+  .hdr-title{font-size:18px}
+  .ai-panel{width:360px}
+}
+
+/* ── MÓVIL GRANDE (≤768px) ───────────────────────── */
+@media (max-width:768px) {
+  /* Header */
+  .hdr{padding:12px 16px;flex-wrap:wrap;gap:10px}
+  .hdr-l{gap:10px}
+  .hdr-title{font-size:16px;letter-spacing:0}
+  .hdr-sub{font-size:10px;display:none}
+  .hdr-r{flex-direction:row;align-items:center;gap:8px;width:100%;justify-content:space-between}
+  .hdr-period{font-size:11px;padding:4px 10px}
+  .hdr-date{display:none}
+  .logo-wrap img{height:38px;width:38px}
+
+  /* Wrap */
+  .wrap{padding:12px 14px}
+
+  /* Tabs */
+  .tabs{padding:10px 12px;gap:6px;overflow-x:auto;flex-wrap:nowrap;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{padding:7px 14px;font-size:11px;white-space:nowrap;flex-shrink:0}
+  .tsep{display:none}
+  .dfilter{display:none}
+
+  /* KPIs — 2 columnas en móvil */
+  .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
+  .kpi{padding:12px 14px}
+  .kpi-val{font-size:24px}
+  .kpi-lbl{font-size:9px}
+
+  /* Grids — 1 columna */
+  .g3,.g2,.g21,.g12,.g4{grid-template-columns:1fr !important}
+  .g3 > *:last-child{grid-column:auto}
+
+  /* Cards */
+  .card{padding:14px 16px}
+  .ct{font-size:12px}
+
+  /* Sección label */
+  .sec{font-size:9px;margin-bottom:10px}
+
+  /* Tabla */
+  .tcard{border-radius:12px}
+  table{font-size:10px}
+  th{padding:7px 8px;font-size:9px}
+  td{padding:7px 8px}
+  .ts{max-width:120px}
+  /* Ocultar columnas menos importantes en móvil */
+  th:nth-child(6),td:nth-child(6),
+  th:nth-child(8),td:nth-child(8),
+  th:nth-child(9),td:nth-child(9){display:none}
+
+  /* Audio */
+  .audio-wrap{padding:16px;flex-wrap:wrap;gap:14px}
+  .aud-stats{flex-direction:row;gap:16px;width:100%;justify-content:center}
+
+  /* Loading */
+  .lcard{padding:24px 20px}
+
+  /* Agente FAB */
+  .ai-fab-wrap{bottom:20px;right:16px}
+  .ai-fab{width:52px;height:52px}
+  .ai-panel{width:calc(100vw - 32px);right:16px;bottom:88px;max-height:75vh}
+  .ai-fab-label{font-size:8px}
+}
+
+/* ── MÓVIL PEQUEÑO (≤480px) ──────────────────────── */
+@media (max-width:480px) {
+  .hdr-title{font-size:14px}
+  .logo-wrap img{height:32px;width:32px}
+  .kpis{grid-template-columns:repeat(2,1fr);gap:6px}
+  .kpi-val{font-size:22px}
+  .kpi{padding:10px 12px}
+  .wrap{padding:10px 12px}
+  .audio-wrap{padding:14px}
+  .aud-icon{width:40px;height:40px;font-size:18px}
+  .aud-title{font-size:14px}
+
+  /* Tabla más compacta */
+  th:nth-child(7),td:nth-child(7){display:none}
+  td{padding:6px 8px}
+
+  /* Tabs más compactos */
+  .tab{padding:6px 12px;font-size:10px}
+}
+
+/* ── LANDSCAPE MÓVIL ─────────────────────────────── */
+@media (max-width:768px) and (orientation:landscape) {
+  .ai-panel{max-height:90vh;bottom:70px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .hdr{padding:8px 14px}
+}
+
+
+/* Filtro móvil */
+.filter-mob-btn{display:none;padding:7px 14px;border-radius:10px;
+  border:1.5px solid rgba(255,255,255,.14);font-size:11px;font-weight:700;
+  background:rgba(255,255,255,.07);color:#cbd5e1;cursor:pointer;font-family:inherit;
+  white-space:nowrap;flex-shrink:0}
+.mob-filter-panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;padding:14px;margin-bottom:14px}
+.mob-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mob-filter-row label{font-size:11px;font-weight:700;color:#94a3b8}
+@media(max-width:768px){
+  .filter-mob-btn{display:flex;align-items:center;gap:5px}
+}
+
 </style>
 </head>
 <body>
@@ -469,10 +593,22 @@ tr:hover td{background:#1a1a2e}
   <div class="tab"    id="tab2" onclick="setM(2)">Mes 3</div>
   <div class="tab"    id="tab3" onclick="setM(3)">▦ Total Período</div>
   <div class="tsep"></div>
-  <div class="dfilter">
+  <div class="dfilter" id="dfilterDesktop">
     <label>Desde</label><input type="month" class="din" id="dFrom">
     <label>Hasta</label><input type="month" class="din" id="dTo">
     <button class="baply" onclick="applyFilter()">Aplicar</button>
+  </div>
+  <button class="filter-mob-btn" onclick="toggleMobFilter()" id="filterMobBtn">
+    📅 Filtrar
+  </button>
+</div>
+
+<!-- Filtro móvil desplegable -->
+<div class="mob-filter-panel" id="mobFilterPanel" style="display:none">
+  <div class="mob-filter-row">
+    <label>Desde</label><input type="month" class="din" id="dFromMob">
+    <label>Hasta</label><input type="month" class="din" id="dToMob">
+    <button class="baply" onclick="applyMobFilter()">Aplicar</button>
   </div>
 </div>
 
